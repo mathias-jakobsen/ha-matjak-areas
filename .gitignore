@@ -1,0 +1,13 @@
+/*
+
+!hacs.json
+!README.md
+!.gitignore
+
+!/custom_components
+/custom_components/**
+!/custom_components/**/
+!/custom_components/matjak_areas
+!/custom_components/matjak_areas/*
+!/custom_components/matjak_areas/**/*
+/custom_components/matjak_areas/**/__pycache__
