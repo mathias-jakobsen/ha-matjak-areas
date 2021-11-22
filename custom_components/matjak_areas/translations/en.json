@@ -1,0 +1,56 @@
+{
+    "title": "Matjak Areas",
+    "config": {
+        "abort": {
+            "already_configured": "Integration has already been configured."
+        },
+        "error": {
+            "area_required": "At least one area must be selected.",
+            "name_required": "A name is required when 2 or more areas are selected."
+        },
+        "step": {
+            "user": {
+                "title": "Matjak Areas",
+                "description": "Once you have added the integration, use the options button to configure it.",
+                "data": {
+                    "name": "Name",
+                    "areas": "Areas"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Basic Options (Step 1/3)",
+                "description": "From here you can configure the basic integration options.",
+                "data": {
+                    "selected_areas": "Selected Areas",
+                    "exclude_entities": "Exclude Entities",
+                    "include_entities": "Include Entities"
+                }
+            },
+            "presence": {
+                "title": "Presence Detection (Step 2/3)",
+                "description": "From here you can configure presence detection feature. Select the entities and define the states that indicate presence.",
+                "data": {
+                    "selected_areas": "Selected Areas",
+                    "enable": "Enable feature",
+                    "entities": "Entities",
+                    "states_on": "States",
+                    "go_back": "Go back to previous step when pressing submit"
+                }
+            },
+            "sensor_aggregation": {
+                "title": "Sensor Aggregation (Step 3/3)",
+                "description": "From here you can configure sensor aggregation feature. Select the device classes you want to aggregate.",
+                "data": {
+                    "selected_areas": "Selected Areas",
+                    "enable": "Enable feature",
+                    "device_classes": "Device Classes",
+                    "go_back": "Go back to previous step when pressing submit"
+                }
+            }
+        }
+    }
+}

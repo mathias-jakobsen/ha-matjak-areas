@@ -1,0 +1,10 @@
+{
+    "config_flow": true,
+    "domain": "matjak_areas",
+    "name": "Matjak Areas",
+    "documentation": "",
+    "dependencies": [],
+    "codeowners": [],
+    "requirements": [],
+    "version": "1"
+}
