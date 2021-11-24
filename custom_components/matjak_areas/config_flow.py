@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 from .const import (
-    DOMAIN,
+    AGGREGATE_BINARY_SENSOR_CLASSES,
+    AGGREGATE_SENSOR_CLASSES,
     CONF_AREAS,
+    CONF_DEVICE_CLASS,
     CONF_DEVICE_CLASSES,
     CONF_ENABLE,
     CONF_ENTITIES,
@@ -15,14 +17,21 @@ from .const import (
     CONF_NAME,
     CONF_SELECTED_AREAS,
     CONF_STATES_ON,
+    DOMAIN,
+    FEATURE_BINARY_SENSOR_AGGREGATION,
     FEATURE_PRESENCE,
     FEATURE_SENSOR_AGGREGATION
 )
 from .utils.functions import flatten_list
-from homeassistant.components.sensor import DEVICE_CLASSES
+from homeassistant.components.binary_sensor import (
+    DEVICE_CLASS_MOTION,
+    DEVICE_CLASS_OCCUPANCY,
+    DEVICE_CLASSES as BINARY_SENSOR_DEVICE_CLASSES
+)
+from homeassistant.components.sensor import DEVICE_CLASSES as SENSOR_DEVICE_CLASSES
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import area_registry, config_validation as cv, entity_registry
+from homeassistant.helpers import area_registry, config_validation as cv
 from homeassistant.helpers.template import area_entities
 from typing import Any, Dict, List, Union
 import voluptuous as vol
@@ -37,6 +46,7 @@ ERROR_AREA_REQUIRED = "area_required"
 ERROR_NAME_REQUIRED = "name_required"
 
 # ------ Steps ---------------
+STEP_BINARY_SENSOR_AGGREGATION = "binary_sensor_aggregation"
 STEP_INIT = "init"
 STEP_PRESENCE = "presence"
 STEP_SENSOR_AGGREGATION = "sensor_aggregation"
@@ -90,6 +100,7 @@ class Matjak_OptionsFlow_Steps:
             vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
             vol.Required(CONF_ENTITIES, default=selected_entity_ids): cv.multi_select(entity_ids),
             vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, []))): str,
+            vol.Required(CONF_DEVICE_CLASS, default=data.get(CONF_DEVICE_CLASS, DEVICE_CLASS_MOTION)): vol.In([DEVICE_CLASS_MOTION, DEVICE_CLASS_OCCUPANCY]),
             vol.Required(CONF_GO_BACK, default=False): bool
         })
 
@@ -97,7 +108,19 @@ class Matjak_OptionsFlow_Steps:
     def sensor_aggregation(hass: HomeAssistant, data: Dict[str, Any] = {}) -> vol.Schema:
         feature_data = data.get(FEATURE_SENSOR_AGGREGATION, {})
         selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
-        device_classes = selected_device_classes + [device_class for device_class in DEVICE_CLASSES if device_class not in selected_device_classes]
+        device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_SENSOR_CLASSES if device_class not in selected_device_classes]
+
+        return vol.Schema({
+            vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
+            vol.Required(CONF_DEVICE_CLASSES, default=selected_device_classes): cv.multi_select(device_classes),
+            vol.Required(CONF_GO_BACK, default=False): bool
+        })
+
+    @staticmethod
+    def binary_sensor_aggregation(hass: HomeAssistant, data: Dict[str, Any] = {}) -> vol.Schema:
+        feature_data = data.get(FEATURE_BINARY_SENSOR_AGGREGATION, {})
+        selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
+        device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_BINARY_SENSOR_CLASSES if device_class not in selected_device_classes]
 
         return vol.Schema({
             vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
@@ -206,7 +229,21 @@ class Matjak_OptionsFlow(OptionsFlow):
             if go_back:
                 return await self.async_step_presence()
 
-            return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
+            return await self.async_step_binary_sensor_aggregation()
 
         schema = Matjak_OptionsFlow_Steps.sensor_aggregation(self.hass, self._data)
         return self.async_show_form(step_id=STEP_SENSOR_AGGREGATION, data_schema=schema)
+
+    async def async_step_binary_sensor_aggregation(self, user_input: Union[Dict[str, Any], None] = None) -> Dict[str, Any]:
+        """ The sensor aggregation step of the flow. """
+        if user_input is not None:
+            go_back = user_input.pop(CONF_GO_BACK)
+            self._data.setdefault(FEATURE_BINARY_SENSOR_AGGREGATION, {}).update(user_input)
+
+            if go_back:
+                return await self.async_step_sensor_aggregation()
+
+            return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
+
+        schema = Matjak_OptionsFlow_Steps.binary_sensor_aggregation(self.hass, self._data)
+        return self.async_show_form(step_id=STEP_BINARY_SENSOR_AGGREGATION, data_schema=schema)

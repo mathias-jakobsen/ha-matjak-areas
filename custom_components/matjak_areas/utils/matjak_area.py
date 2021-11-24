@@ -5,13 +5,16 @@
 from __future__ import annotations
 from ..const import (
     CONF_AREAS,
+    CONF_DEVICE_CLASS,
     CONF_EXCLUDE_ENTITIES,
-    CONF_INCLUDE_ENTITIES
+    CONF_INCLUDE_ENTITIES,
+    CONF_NAME
 )
 from .functions import flatten_list
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
+from homeassistant.helpers.entity_registry import EVENT_ENTITY_REGISTRY_UPDATED
 from homeassistant.helpers.template import area_entities
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 
 #-----------------------------------------------------------#
@@ -20,33 +23,19 @@ from typing import Any, Dict, List
 
 class MatjakArea:
     #--------------------------------------------#
-    #       Static Properties
-    #--------------------------------------------#
-
-    _INSTANCES = {}
-
-
-    #--------------------------------------------#
-    #       Static Methods
-    #--------------------------------------------#
-
-    @staticmethod
-    def get(id: str) -> MatjakArea:
-        """ Gets a MatjakArea from its id. """
-        return MatjakArea._INSTANCES.get(id)
-
-
-    #--------------------------------------------#
     #       Constructor
     #--------------------------------------------#
 
     def __init__(self, hass: HomeAssistant, id: str, config: Dict[str, Any]):
-        self._config = config
-        self._entities = self._process_entity_config(hass, config)
-        self._hass = hass
-        self._id = id
+        self._areas             : List[str]      = config.get(CONF_AREAS)
+        self._config            : Dict[str, Any] = config
+        self._entities          : List[str]      = self._process_entity_config(hass, config)
+        self._hass              : HomeAssistant  = hass
+        self._id                : str            = id
+        self._listeners         : List[Callable] = []
+        self._name              : str            = config.get(CONF_NAME)
+        self._registry_listener : Callable       = None
 
-        MatjakArea._INSTANCES[id] = self
 
 
     #--------------------------------------------#
@@ -62,6 +51,35 @@ class MatjakArea:
 
         return filtered_area_entity_ids + included_entity_ids
 
+    def _remove_listeners(self) -> None:
+        """ Removes all listeners. """
+        self._registry_listener and self._registry_listener()
+        while self._listeners:
+            self._listeners.pop()()
+
+    def _setup_listeners(self) -> None:
+        """ Sets up event listeners. """
+        self._registry_listener = self._hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED)
+
+
+    #--------------------------------------------#
+    #       Private Event Handlers
+    #--------------------------------------------#
+
+    async def _async_on_entity_registry_updated(self, event: Event) -> None:
+        """ Called when the entity registry is updated. """
+        pass
+
+
+    #--------------------------------------------#
+    #       Properties
+    #--------------------------------------------#
+
+    @property
+    def name(self) -> str:
+        """ Gets the name of the area (group). """
+        return self._name
+
 
     #--------------------------------------------#
     #       Methods
@@ -71,6 +89,23 @@ class MatjakArea:
         """ Gets a specific feature. """
         return self._config.get(feature, None)
 
-    def get_entities(self, domains: List[str] = [], device_classes: List[str] = []) -> List[str]:
+    def get_entities(self, domains: List[str] = None, device_classes: List[str] = None) -> List[str]:
         """ Gets a list of entities. """
-        pass
+        result = []
+
+        for entity_id in self._entities:
+            state = self._hass.states.get(entity_id)
+
+            if state is None:
+                continue
+
+            if domains is not None and entity_id.split(".")[0] not in domains:
+                continue
+
+            if device_classes is not None:
+                if state.attributes.get(CONF_DEVICE_CLASS, None) not in device_classes:
+                    continue
+
+            result.append(entity_id)
+
+        return result

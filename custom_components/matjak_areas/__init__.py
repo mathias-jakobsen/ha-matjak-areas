@@ -2,7 +2,11 @@
 #       Imports
 #-----------------------------------------------------------#
 
-from .const import DOMAIN, PLATFORMS
+from .const import (
+    DOMAIN,
+    PLATFORMS
+)
+from .utils.matjak_area import MatjakArea
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import IntegrationError
@@ -15,7 +19,7 @@ from typing import Any, Dict
 #-----------------------------------------------------------#
 
 LOGGER = getLogger(__package__)
-UNDO_LISTENERS = "undo_listeners"
+REMOVE_LISTENERS = {}
 
 
 #-----------------------------------------------------------#
@@ -32,9 +36,9 @@ async def async_setup(hass: HomeAssistant, config: Dict[Any, str]) -> bool:
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """ Called when a config entry is being setup.  """
     data = hass.data.setdefault(DOMAIN, {})
+    data[config_entry.entry_id] = MatjakArea(hass, config_entry.entry_id, config_entry.options)
 
-    data[config_entry.entry_id] = { UNDO_LISTENERS: [] }
-    data[config_entry.entry_id][UNDO_LISTENERS].append(config_entry.add_update_listener(async_update_options))
+    REMOVE_LISTENERS[config_entry.entry_id] = config_entry.add_update_listener(async_update_options)
 
     for platform in PLATFORMS:
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
@@ -56,11 +60,10 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 
     data = hass.data[DOMAIN]
 
-    while data[config_entry.entry_id][UNDO_LISTENERS]:
-        data[config_entry.entry_id][UNDO_LISTENERS].pop()()
-
     if unload_ok:
         data.pop(config_entry.entry_id)
+
+    REMOVE_LISTENERS[config_entry.entry_id]()
 
     return unload_ok
 
