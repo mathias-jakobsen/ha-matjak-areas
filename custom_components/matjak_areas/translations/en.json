@@ -38,7 +38,6 @@
                     "enable": "Enable feature",
                     "entities": "Entities",
                     "states_on": "States",
-                    "device_class": "Device class",
                     "go_back": "Go back to previous step when pressing submit"
                 }
             },

@@ -7,7 +7,6 @@ from .const import (
     AGGREGATE_BINARY_SENSOR_CLASSES,
     AGGREGATE_SENSOR_CLASSES,
     CONF_AREAS,
-    CONF_DEVICE_CLASS,
     CONF_DEVICE_CLASSES,
     CONF_ENABLE,
     CONF_ENTITIES,
@@ -23,23 +22,20 @@ from .const import (
     FEATURE_SENSOR_AGGREGATION
 )
 from .utils.functions import flatten_list
-from homeassistant.components.binary_sensor import (
-    DEVICE_CLASS_MOTION,
-    DEVICE_CLASS_OCCUPANCY,
-    DEVICE_CLASSES as BINARY_SENSOR_DEVICE_CLASSES
-)
-from homeassistant.components.sensor import DEVICE_CLASSES as SENSOR_DEVICE_CLASSES
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import area_registry, config_validation as cv
-from homeassistant.helpers.template import area_entities
-from typing import Any, Dict, List, Union
+from homeassistant.helpers import area_registry, config_validation as cv, entity_registry
+from homeassistant.helpers.template import area_entities, area_id, area_name
+from logging import getLogger
+from typing import Any, Dict, Union
 import voluptuous as vol
 
 
 #-----------------------------------------------------------#
 #       Constants
 #-----------------------------------------------------------#
+
+LOGGER = getLogger(__name__)
 
 # ------ Errors --------------
 ERROR_AREA_REQUIRED = "area_required"
@@ -70,37 +66,43 @@ class Matjak_ConfigFlow_Steps:
 
 class Matjak_OptionsFlow_Steps:
     @staticmethod
-    def init(hass: HomeAssistant, data: Dict[str, Any] = {}) -> vol.Schema:
+    def init(hass: HomeAssistant, config_entry: ConfigEntry, data: Dict[str, Any] = {}) -> vol.Schema:
         selected_exclude_entity_ids = data.get(CONF_EXCLUDE_ENTITIES, [])
         selected_include_entity_ids = data.get(CONF_INCLUDE_ENTITIES, [])
 
-        area_entity_ids = sorted(flatten_list([area_entities(hass, area) for area in data.get(CONF_AREAS, [])]))
+        area_ids = data.get(CONF_AREAS, [])
+        areas = [area_name(hass, area) for area in area_ids]
+
+        area_entity_ids = sorted(flatten_list([area_entities(hass, area) for area in area_ids]))
+        entry_entity_ids = [entry.entity_id for entry in entity_registry.async_entries_for_config_entry(entity_registry.async_get(hass), config_entry.entry_id)]
         all_entity_ids = sorted([entity_id for entity_id in hass.states.async_entity_ids() if entity_id not in area_entity_ids])
 
-        exclude_entity_ids = selected_exclude_entity_ids + [entity_id for entity_id in area_entity_ids if entity_id not in selected_exclude_entity_ids]
-        include_entity_ids = selected_include_entity_ids + [entity_id for entity_id in all_entity_ids if entity_id not in selected_include_entity_ids]
+        exclude_entity_ids = selected_exclude_entity_ids + [entity_id for entity_id in area_entity_ids if entity_id not in selected_exclude_entity_ids and entity_id not in entry_entity_ids]
+        include_entity_ids = selected_include_entity_ids + [entity_id for entity_id in all_entity_ids if entity_id not in selected_include_entity_ids and entity_id not in entry_entity_ids]
 
         return vol.Schema({
-            vol.Required(CONF_SELECTED_AREAS): ", ".join(data.get(CONF_AREAS, [])),
+            # auto reload config entry on registry changes?
+            vol.Required(CONF_SELECTED_AREAS): ", ".join(areas),
             vol.Required(CONF_EXCLUDE_ENTITIES, default=selected_exclude_entity_ids): cv.multi_select(exclude_entity_ids),
             vol.Required(CONF_INCLUDE_ENTITIES, default=selected_include_entity_ids): cv.multi_select(include_entity_ids)
         })
 
     @staticmethod
-    def presence(hass: HomeAssistant, data: Dict[str, Any] = {}) -> vol.Schema:
+    def presence(hass: HomeAssistant, config_entry: ConfigEntry, data: Dict[str, Any] = {}) -> vol.Schema:
         feature_data = data.get(FEATURE_PRESENCE, {})
         excluded_entity_ids = data.get(CONF_EXCLUDE_ENTITIES, [])
         selected_entity_ids = [entity_id for entity_id in feature_data.get(CONF_ENTITIES, []) if entity_id not in excluded_entity_ids]
         selected_include_entity_ids = data.get(CONF_INCLUDE_ENTITIES, [])
         area_entity_ids = sorted(flatten_list([area_entities(hass, area) for area in data.get(CONF_AREAS, [])]))
-        filtered_area_entity_ids = [entity_id for entity_id in area_entity_ids if entity_id not in excluded_entity_ids]
+        entry_entity_ids = [entry.entity_id for entry in entity_registry.async_entries_for_config_entry(entity_registry.async_get(hass), config_entry.entry_id)]
+        filtered_area_entity_ids = [entity_id for entity_id in area_entity_ids if entity_id not in excluded_entity_ids and entity_id not in entry_entity_ids]
         entity_ids = selected_entity_ids + [entity_id for entity_id in filtered_area_entity_ids + selected_include_entity_ids if entity_id not in selected_entity_ids]
+        default_states_on = ["on", "playing", "home"]
 
         return vol.Schema({
             vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
             vol.Required(CONF_ENTITIES, default=selected_entity_ids): cv.multi_select(entity_ids),
-            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, []))): str,
-            vol.Required(CONF_DEVICE_CLASS, default=data.get(CONF_DEVICE_CLASS, DEVICE_CLASS_MOTION)): vol.In([DEVICE_CLASS_MOTION, DEVICE_CLASS_OCCUPANCY]),
+            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, default_states_on))): str,
             vol.Required(CONF_GO_BACK, default=False): bool
         })
 
@@ -171,6 +173,7 @@ class Matjak_ConfigFlow(ConfigFlow, domain=DOMAIN):
                 if not user_input[CONF_NAME]:
                     user_input[CONF_NAME] = user_input[CONF_AREAS][0]
 
+                user_input[CONF_AREAS] = [area_id(self.hass, area) for area in user_input[CONF_AREAS]]
                 return self.async_create_entry(title=user_input[CONF_NAME], data=user_input)
 
         schema = Matjak_ConfigFlow_Steps.init(self.hass, user_input or {})
@@ -199,10 +202,10 @@ class Matjak_OptionsFlow(OptionsFlow):
         """ The init step of the flow. """
         if user_input is not None:
             user_input.pop(CONF_SELECTED_AREAS)
-            self._data.update(user_input)
+            self._data = { **self._data, **user_input }
             return await self.async_step_presence()
 
-        schema = Matjak_OptionsFlow_Steps.init(self.hass, self._data)
+        schema = Matjak_OptionsFlow_Steps.init(self.hass, self._config_entry, self._data)
         return self.async_show_form(step_id=STEP_INIT, data_schema=schema)
 
     async def async_step_presence(self, user_input: Union[Dict[str, Any], None] = None) -> Dict[str, Any]:
@@ -210,21 +213,22 @@ class Matjak_OptionsFlow(OptionsFlow):
         if user_input is not None:
             go_back = user_input.pop(CONF_GO_BACK)
             user_input[CONF_STATES_ON] = cv.ensure_list_csv(user_input[CONF_STATES_ON])
-            self._data.setdefault(FEATURE_PRESENCE, {}).update(user_input)
+
+            self._data = { **self._data, FEATURE_PRESENCE: user_input }
 
             if go_back:
                 return await self.async_step_init()
 
             return await self.async_step_sensor_aggregation()
 
-        schema = Matjak_OptionsFlow_Steps.presence(self.hass, self._data)
+        schema = Matjak_OptionsFlow_Steps.presence(self.hass, self._config_entry, self._data)
         return self.async_show_form(step_id=STEP_PRESENCE, data_schema=schema)
 
     async def async_step_sensor_aggregation(self, user_input: Union[Dict[str, Any], None] = None) -> Dict[str, Any]:
         """ The sensor aggregation step of the flow. """
         if user_input is not None:
             go_back = user_input.pop(CONF_GO_BACK)
-            self._data.setdefault(FEATURE_SENSOR_AGGREGATION, {}).update(user_input)
+            self._data = { **self._data, FEATURE_SENSOR_AGGREGATION: user_input }
 
             if go_back:
                 return await self.async_step_presence()
@@ -238,12 +242,12 @@ class Matjak_OptionsFlow(OptionsFlow):
         """ The sensor aggregation step of the flow. """
         if user_input is not None:
             go_back = user_input.pop(CONF_GO_BACK)
-            self._data.setdefault(FEATURE_BINARY_SENSOR_AGGREGATION, {}).update(user_input)
+            self._data = { **self._data, FEATURE_BINARY_SENSOR_AGGREGATION: user_input }
 
             if go_back:
                 return await self.async_step_sensor_aggregation()
 
-            return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
+            return self.async_create_entry(title="", data=self._data)
 
         schema = Matjak_OptionsFlow_Steps.binary_sensor_aggregation(self.hass, self._data)
         return self.async_show_form(step_id=STEP_BINARY_SENSOR_AGGREGATION, data_schema=schema)

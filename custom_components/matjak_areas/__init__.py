@@ -18,8 +18,7 @@ from typing import Any, Dict
 #       Constants
 #-----------------------------------------------------------#
 
-LOGGER = getLogger(__package__)
-REMOVE_LISTENERS = {}
+LOGGER = getLogger(__name__)
 
 
 #-----------------------------------------------------------#
@@ -38,7 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     data = hass.data.setdefault(DOMAIN, {})
     data[config_entry.entry_id] = MatjakArea(hass, config_entry.entry_id, config_entry.options)
 
-    REMOVE_LISTENERS[config_entry.entry_id] = config_entry.add_update_listener(async_update_options)
+    config_entry.async_on_unload(config_entry.add_update_listener(async_update_options))
 
     for platform in PLATFORMS:
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
@@ -62,8 +61,6 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 
     if unload_ok:
         data.pop(config_entry.entry_id)
-
-    REMOVE_LISTENERS[config_entry.entry_id]()
 
     return unload_ok
 

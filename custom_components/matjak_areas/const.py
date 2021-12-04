@@ -30,13 +30,14 @@ from homeassistant.components.sensor import (
 #-----------------------------------------------------------#
 
 DOMAIN = "matjak_areas"
-PLATFORMS = []
+PLATFORMS = ["binary_sensor"]
 
 
 #-----------------------------------------------------------#
 #       Configuration Keys
 #-----------------------------------------------------------#
 
+CONF_AREA_ID = "area_id"
 CONF_AREAS = "areas"
 CONF_DEVICE_CLASS = "device_class"
 CONF_DEVICE_CLASSES = "device_classes"
