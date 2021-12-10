@@ -6,18 +6,28 @@ from __future__ import annotations
 from ..const import (
     CONF_AREAS,
     CONF_DEVICE_CLASS,
+    CONF_ENABLE,
     CONF_EXCLUDE_ENTITIES,
     CONF_INCLUDE_ENTITIES,
     CONF_NAME
 )
 from .functions import flatten_list
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry
 from homeassistant.helpers.template import area_entities
+from logging import getLogger
 from typing import Any, Dict, List
 
 
 #-----------------------------------------------------------#
-#       Class - MatjakArea
+#       Constants
+#-----------------------------------------------------------#
+
+LOGGER = getLogger(__name__)
+
+
+#-----------------------------------------------------------#
+#       MatjakArea
 #-----------------------------------------------------------#
 
 class MatjakArea:
@@ -26,12 +36,12 @@ class MatjakArea:
     #--------------------------------------------#
 
     def __init__(self, hass: HomeAssistant, id: str, config: Dict[str, Any]):
-        self._areas             : List[str]      = config.get(CONF_AREAS)
-        self._config            : Dict[str, Any] = config
-        self._entities          : List[str]      = self._process_entity_config(hass, config)
-        self._hass              : HomeAssistant  = hass
-        self._id                : str            = id
-        self._name              : str            = config.get(CONF_NAME)
+        self._areas    : List[str]      = config.get(CONF_AREAS)
+        self._config   : Dict[str, Any] = config
+        self._entities : List[str]      = self._process_entity_config(hass, config)
+        self._hass     : HomeAssistant  = hass
+        self._id       : str            = id
+        self._name     : str            = config.get(CONF_NAME)
 
 
     #--------------------------------------------#
@@ -44,8 +54,15 @@ class MatjakArea:
         excluded_entity_ids = config.get(CONF_EXCLUDE_ENTITIES, [])
         included_entity_ids = config.get(CONF_INCLUDE_ENTITIES, [])
         filtered_area_entity_ids = [entity_id for entity_id in area_entity_ids if entity_id not in excluded_entity_ids]
+        entities = filtered_area_entity_ids + included_entity_ids
 
-        return filtered_area_entity_ids + included_entity_ids
+        for entity_id in entities:
+            entity = entity_registry.async_get(hass).async_get(entity_id)
+
+            if entity is None or entity.disabled:
+                entities.remove(entity_id)
+
+        return entities
 
 
     #--------------------------------------------#
@@ -64,7 +81,12 @@ class MatjakArea:
 
     def get_feature(self, feature: str) -> Dict[str, Any]:
         """ Gets a specific feature. """
-        return self._config.get(feature, None)
+        feature_config = self._config.get(feature, None)
+
+        if feature_config and not feature_config.get(CONF_ENABLE, False):
+            return None
+
+        return feature_config
 
     def get_entities(self, domains: List[str] = None, device_classes: List[str] = None) -> List[str]:
         """ Gets a list of entities. """
@@ -86,8 +108,3 @@ class MatjakArea:
             result.append(entity_id)
 
         return result
-
-
-    #--------------------------------------------#
-    #       Methods - Listeners
-    #--------------------------------------------#

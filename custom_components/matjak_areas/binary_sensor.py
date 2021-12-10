@@ -6,13 +6,14 @@ from __future__ import annotations
 from .const import (
     CONF_ENTITIES,
     CONF_STATES_ON,
-    DEVICE_CLASS_OCCUPANCY,
     DOMAIN,
     FEATURE_BINARY_SENSOR_AGGREGATION,
     FEATURE_PRESENCE
 )
 from .utils.matjak_area import MatjakArea
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.components.device_tracker import DOMAIN as DEVICE_TRACKER_DOMAIN
+from homeassistant.components.person import DOMAIN as PERSON_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_START, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
@@ -70,10 +71,9 @@ class PresenceSensor(BinarySensorEntity):
         self._attributes  : Dict[str, Any] = {}
         self._config      : Dict[str, Any] = config
         self._entities    : List[str]      = config.get(CONF_ENTITIES)
-        self._listeners   : List[Callable] = []
         self._matjak_area : MatjakArea     = matjak_area
         self._name        : str            = f"{matjak_area.name} Presence"
-        self._state       : bool           = False
+        self._state       : bool           = None
         self._states_on   : List[str]      = config.get(CONF_STATES_ON)
         self._unique_id   : str            = cv.slugify(self._name)
 
@@ -85,7 +85,13 @@ class PresenceSensor(BinarySensorEntity):
     @property
     def device_class(self) -> str:
         """ Gets the device class of the sensor. """
-        return DEVICE_CLASS_OCCUPANCY
+        for entity_id in self._entities:
+            domain = entity_id.split(".")[0]
+
+            if domain not in [DEVICE_TRACKER_DOMAIN, PERSON_DOMAIN]:
+                return BinarySensorDeviceClass.OCCUPANCY
+
+        return BinarySensorDeviceClass.PRESENCE
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
@@ -119,32 +125,24 @@ class PresenceSensor(BinarySensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """ Triggered when the entity has been added to Home Assistant. """
-        async def async_initialize(*args: Any) -> None:
-            self.setup_listeners()
-            await self.async_update_state()
-
         if self.hass.is_running:
-            return await async_initialize()
+            return await self.async_setup()
         else:
-            return self._listeners.append(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, async_initialize))
+            return self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, self.async_setup)
 
     async def async_will_remove_from_hass(self) -> None:
         """ Triggered when the entity is being removed from Home Assistant. """
-        self.remove_listeners()
+        pass
 
 
     #--------------------------------------------#
-    #       Methods - Listeners
+    #       Methods - Setup
     #--------------------------------------------#
 
-    def remove_listeners(self) -> None:
-        """ Removes all entity listeners. """
-        while self._listeners:
-            self._listeners.pop()()
-
-    def setup_listeners(self) -> None:
-        """ Sets up entity listeners. """
-        self._listeners.append(async_track_state_change(self.hass, self._entities, self.async_update_state))
+    async def async_setup(self, *args: Any) -> None:
+        """ Sets up the entity state and event trackers. """
+        self.async_on_remove(async_track_state_change(self.hass, self._entities, self.async_update_state))
+        await self.async_update_state()
 
 
     #--------------------------------------------#
@@ -154,10 +152,28 @@ class PresenceSensor(BinarySensorEntity):
     async def async_update_state(self, *args) -> None:
         """ Called when the state of an entity changes. """
         old_state = self._state
-        new_state = any((self.hass.states.get(entity_id).state in self._states_on for entity_id in self._entities))
+        new_state = self._get_state()
 
         if old_state == new_state:
             return
 
         self._state = new_state
         self.async_schedule_update_ha_state(True)
+
+
+    #--------------------------------------------#
+    #       Private Methods
+    #--------------------------------------------#
+
+    def _get_state(self) -> bool:
+        """ Reevalutes the state of the entity. """
+        for entity_id in self._entities:
+            state = self.hass.states.get(entity_id)
+
+            if state is None:
+                continue
+
+            if state.state in self._states_on:
+                return True
+
+        return False

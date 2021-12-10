@@ -2,27 +2,8 @@
 #       Imports
 #-----------------------------------------------------------#
 
-from homeassistant.components.binary_sensor import (
-    DEVICE_CLASS_DOOR,
-    DEVICE_CLASS_GAS,
-    DEVICE_CLASS_LIGHT,
-    DEVICE_CLASS_MOISTURE,
-    DEVICE_CLASS_MOTION,
-    DEVICE_CLASS_OCCUPANCY,
-    DEVICE_CLASS_POWER,
-    DEVICE_CLASS_PRESENCE,
-    DEVICE_CLASS_PROBLEM,
-    DEVICE_CLASS_SAFETY,
-    DEVICE_CLASS_SMOKE,
-    DEVICE_CLASS_WINDOW,
-)
-from homeassistant.components.sensor import (
-    DEVICE_CLASS_CURRENT,
-    DEVICE_CLASS_ENERGY,
-    DEVICE_CLASS_HUMIDITY,
-    DEVICE_CLASS_ILLUMINANCE,
-    DEVICE_CLASS_TEMPERATURE
-)
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass
 
 
 #-----------------------------------------------------------#
@@ -39,6 +20,7 @@ PLATFORMS = ["binary_sensor"]
 
 CONF_AREA_ID = "area_id"
 CONF_AREAS = "areas"
+CONF_AUTO_RELOAD = "auto_reload"
 CONF_DEVICE_CLASS = "device_class"
 CONF_DEVICE_CLASSES = "device_classes"
 CONF_ENABLE = "enable"
@@ -67,21 +49,25 @@ FEATURES = [FEATURE_PRESENCE, FEATURE_SENSOR_AGGREGATION, FEATURE_BINARY_SENSOR_
 #-----------------------------------------------------------#
 
 AGGREGATE_BINARY_SENSOR_CLASSES = [
-    DEVICE_CLASS_WINDOW,
-    DEVICE_CLASS_DOOR,
-    DEVICE_CLASS_MOTION,
-    DEVICE_CLASS_MOISTURE,
-    DEVICE_CLASS_LIGHT,
-    DEVICE_CLASS_OCCUPANCY
+    BinarySensorDeviceClass.WINDOW,
+    BinarySensorDeviceClass.DOOR,
+    BinarySensorDeviceClass.MOTION,
+    BinarySensorDeviceClass.MOISTURE,
+    BinarySensorDeviceClass.LIGHT,
+    BinarySensorDeviceClass.OCCUPANCY
 ]
 
 AGGREGATE_SENSOR_CLASSES = [
-    DEVICE_CLASS_CURRENT,
-    DEVICE_CLASS_ENERGY,
-    DEVICE_CLASS_HUMIDITY,
-    DEVICE_CLASS_ILLUMINANCE,
-    DEVICE_CLASS_POWER,
-    DEVICE_CLASS_TEMPERATURE
+    SensorDeviceClass.CURRENT,
+    SensorDeviceClass.ENERGY,
+    SensorDeviceClass.HUMIDITY,
+    SensorDeviceClass.ILLUMINANCE,
+    SensorDeviceClass.POWER,
+    SensorDeviceClass.TEMPERATURE
 ]
 
-AGGREGATE_MODE_SUM = [DEVICE_CLASS_POWER, DEVICE_CLASS_CURRENT, DEVICE_CLASS_ENERGY]
+AGGREGATE_MODE_SUM = [
+    SensorDeviceClass.CURRENT,
+    SensorDeviceClass.ENERGY,
+    SensorDeviceClass.POWER
+]

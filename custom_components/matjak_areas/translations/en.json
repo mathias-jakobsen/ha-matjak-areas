@@ -22,16 +22,24 @@
     "options": {
         "step": {
             "init": {
-                "title": "Basic Options (Step 1/4)",
+                "title": "Basic Options (Step 1/5)",
                 "description": "From here you can configure the basic integration options.",
                 "data": {
-                    "selected_areas": "Selected areas",
+                    "auto_reload": "Automatically reload the integration when one of the registries is updated (area, device, entity)",
+                    "areas": "Areas"
+                }
+            },
+            "entities": {
+                "title": "Entities (Step 2/5)",
+                "description": "From here you can configure the entities being excluded/included.",
+                "data": {
                     "exclude_entities": "Exclude entities",
-                    "include_entities": "Include entities"
+                    "include_entities": "Include entities",
+                    "go_back": "Go back to previous step when pressing submit"
                 }
             },
             "presence": {
-                "title": "Presence Detection (Step 2/4)",
+                "title": "Presence Detection (Step 3/5)",
                 "description": "From here you can configure presence detection feature. Select the entities and define the states that indicate presence.",
                 "data": {
                     "selected_areas": "Selected areas",
@@ -42,7 +50,7 @@
                 }
             },
             "sensor_aggregation": {
-                "title": "Sensor Aggregation (Step 3/4)",
+                "title": "Sensor Aggregation (Step 4/5)",
                 "description": "From here you can configure sensor aggregation feature. Select the device classes you want to aggregate.",
                 "data": {
                     "selected_areas": "Selected areas",
@@ -52,7 +60,7 @@
                 }
             },
             "binary_sensor_aggregation": {
-                "title": "Binary Sensor Aggregation (Step 4/4)",
+                "title": "Binary Sensor Aggregation (Step 5/5)",
                 "description": "From here you can configure binary sensor aggregation feature. Select the device classes you want to aggregate.",
                 "data": {
                     "selected_areas": "Selected areas",
