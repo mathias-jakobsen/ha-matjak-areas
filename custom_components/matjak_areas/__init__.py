@@ -45,7 +45,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         config_entry.async_on_unload(hass.bus.async_listen(EVENT_DEVICE_REGISTRY_UPDATED, async_update_on_registry_update))
         config_entry.async_on_unload(hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, async_update_on_registry_update))
 
-
     data = hass.data.setdefault(DOMAIN, {})
     data[config_entry.entry_id] = MatjakArea(hass, config_entry.entry_id, config_entry.options)
 
@@ -53,7 +52,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
 
     if config_entry.options.get(CONF_AUTO_RELOAD, False):
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, async_on_homeassistant_start)
+        if hass.is_running:
+            await async_on_homeassistant_start()
+        else:
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, async_on_homeassistant_start)
 
     config_entry.async_on_unload(config_entry.add_update_listener(async_update_options))
 
