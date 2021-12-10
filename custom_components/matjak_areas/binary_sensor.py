@@ -15,7 +15,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.components.device_tracker import DOMAIN as DEVICE_TRACKER_DOMAIN
 from homeassistant.components.person import DOMAIN as PERSON_DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_START, STATE_OFF, STATE_ON
+from homeassistant.const import CONF_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change
@@ -59,7 +59,7 @@ def create_presence_sensor(hass: HomeAssistant, matjak_area: MatjakArea, config:
 
 
 #-----------------------------------------------------------#
-#       Class: PresenceSensor
+#       PresenceSensor
 #-----------------------------------------------------------#
 
 class PresenceSensor(BinarySensorEntity):
@@ -96,6 +96,7 @@ class PresenceSensor(BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """ Gets the attributes. """
+        self._attributes = { CONF_ENTITY_ID: self._entities }
         return self._attributes
 
     @property

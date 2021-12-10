@@ -56,10 +56,12 @@ class MatjakArea:
         filtered_area_entity_ids = [entity_id for entity_id in area_entity_ids if entity_id not in excluded_entity_ids]
         entities = filtered_area_entity_ids + included_entity_ids
 
+        # check disabled devices?
+
         for entity_id in entities:
             entity = entity_registry.async_get(hass).async_get(entity_id)
 
-            if entity is None or entity.disabled:
+            if entity is not None and entity.disabled:
                 entities.remove(entity_id)
 
         return entities

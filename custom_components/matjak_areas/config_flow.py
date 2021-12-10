@@ -25,7 +25,7 @@ from .const import (
 from .utils.flow_builder import FlowBuilder
 from .utils.functions import flatten_list
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.helpers import area_registry, config_validation as cv, entity_registry
 from homeassistant.helpers.template import area_entities, area_id, area_name
 from logging import getLogger
@@ -36,8 +36,6 @@ import voluptuous as vol
 #-----------------------------------------------------------#
 #       Constants
 #-----------------------------------------------------------#
-
-LOGGER = getLogger(__name__)
 
 # ------ Errors --------------
 ERROR_AREA_REQUIRED = "area_required"
@@ -129,7 +127,8 @@ class Matjak_OptionsFlow(OptionsFlow):
         self._flow_builder = FlowBuilder(self, { **config_entry.data, **config_entry.options })
         self._flow_builder.add_step(STEP_INIT, self.step_init_schema_builder, self.step_init_schema_validator, STEP_ENTITIES)
         self._flow_builder.add_step(STEP_ENTITIES, self.step_entities_schema_builder, self.step_entities_schema_validator, STEP_PRESENCE)
-        self._flow_builder.add_step(STEP_PRESENCE, self.step_presence_schema_builder, self.step_presence_schema_validator)
+        self._flow_builder.add_step(STEP_PRESENCE, self.step_presence_schema_builder, self.step_presence_schema_validator, STEP_SENSOR_AGGREGATION)
+        self._flow_builder.add_step(STEP_SENSOR_AGGREGATION, self.step_sensor_aggregation_schema_builder, self.step_sensor_aggregation_schema_validator)
 
 
     #--------------------------------------------#
@@ -203,3 +202,21 @@ class Matjak_OptionsFlow(OptionsFlow):
     def step_presence_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
         user_input[CONF_STATES_ON] = cv.ensure_list_csv(user_input[CONF_STATES_ON])
         return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), FEATURE_PRESENCE: user_input }
+
+
+    #--------------------------------------------#
+    #       Sensor Aggregation Step
+    #--------------------------------------------#
+
+    def step_sensor_aggregation_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
+        feature_data = data.get(FEATURE_SENSOR_AGGREGATION, {})
+        selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
+        device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_SENSOR_CLASSES if device_class not in selected_device_classes]
+
+        return vol.Schema({
+            vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
+            vol.Required(CONF_DEVICE_CLASSES, default=selected_device_classes): cv.multi_select(device_classes)
+        })
+
+    def step_sensor_aggregation_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
+        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), FEATURE_SENSOR_AGGREGATION: user_input }

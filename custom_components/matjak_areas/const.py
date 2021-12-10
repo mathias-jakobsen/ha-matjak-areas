@@ -2,8 +2,8 @@
 #       Imports
 #-----------------------------------------------------------#
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, DOMAIN as BINARY_SENSOR_DOMAIN
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
 
 
 #-----------------------------------------------------------#
@@ -11,7 +11,7 @@ from homeassistant.components.sensor import SensorDeviceClass
 #-----------------------------------------------------------#
 
 DOMAIN = "matjak_areas"
-PLATFORMS = ["binary_sensor"]
+PLATFORMS = [BINARY_SENSOR_DOMAIN, SENSOR_DOMAIN]
 
 
 #-----------------------------------------------------------#
