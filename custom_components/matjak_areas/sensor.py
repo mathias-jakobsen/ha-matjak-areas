@@ -84,7 +84,6 @@ class AggregationSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """ Gets the attributes. """
-        self._attributes = { CONF_ENTITY_ID: self._entities }
         return self._attributes
 
     @property

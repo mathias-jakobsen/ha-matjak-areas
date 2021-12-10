@@ -15,7 +15,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.components.device_tracker import DOMAIN as DEVICE_TRACKER_DOMAIN
 from homeassistant.components.person import DOMAIN as PERSON_DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE_OFF, STATE_ON
+from homeassistant.const import CONF_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change
@@ -73,7 +73,7 @@ class PresenceSensor(BinarySensorEntity):
         self._entities    : List[str]      = config.get(CONF_ENTITIES)
         self._matjak_area : MatjakArea     = matjak_area
         self._name        : str            = f"{matjak_area.name} Presence"
-        self._state       : bool           = None
+        self._state       : List[str]      = None
         self._states_on   : List[str]      = config.get(CONF_STATES_ON)
         self._unique_id   : str            = cv.slugify(self._name)
 
@@ -96,7 +96,7 @@ class PresenceSensor(BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """ Gets the attributes. """
-        self._attributes = { CONF_ENTITY_ID: self._entities }
+        self._attributes = { CONF_ENTITY_ID: self._state }
         return self._attributes
 
     @property
@@ -112,7 +112,7 @@ class PresenceSensor(BinarySensorEntity):
     @property
     def state(self) -> str:
         """ Gets the state of the entity. """
-        return STATE_ON if self._state else STATE_OFF
+        return STATE_ON if len(self._state) > 0 else STATE_OFF
 
     @property
     def unique_id(self) -> str:
@@ -152,13 +152,7 @@ class PresenceSensor(BinarySensorEntity):
 
     async def async_update_state(self, *args) -> None:
         """ Called when the state of an entity changes. """
-        old_state = self._state
-        new_state = self._get_state()
-
-        if old_state == new_state:
-            return
-
-        self._state = new_state
+        self._state = self._get_state()
         self.async_schedule_update_ha_state(True)
 
 
@@ -168,13 +162,18 @@ class PresenceSensor(BinarySensorEntity):
 
     def _get_state(self) -> bool:
         """ Reevalutes the state of the entity. """
+        result = []
+
         for entity_id in self._entities:
             state = self.hass.states.get(entity_id)
 
             if state is None:
                 continue
 
-            if state.state in self._states_on:
-                return True
+            if state.state == STATE_UNAVAILABLE:
+                continue
 
-        return False
+            if state.state in self._states_on:
+                result.append(entity_id)
+
+        return result
