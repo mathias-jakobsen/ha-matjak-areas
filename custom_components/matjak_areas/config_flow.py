@@ -190,7 +190,7 @@ class Matjak_OptionsFlow(OptionsFlow):
         area_entity_ids = sorted(flatten_list([area_entities(self.hass, area) for area in data.get(CONF_AREAS, [])]))
         entry_entity_ids = [entry.entity_id for entry in entity_registry.async_entries_for_config_entry(entity_registry.async_get(self.hass), self._config_entry.entry_id)]
         filtered_area_entity_ids = [entity_id for entity_id in area_entity_ids if entity_id not in excluded_entity_ids and entity_id not in entry_entity_ids]
-        entity_ids = selected_entity_ids + [entity_id for entity_id in filtered_area_entity_ids + selected_include_entity_ids if entity_id not in selected_entity_ids]
+        entity_ids = selected_entity_ids + [entity_id for entity_id in sorted(filtered_area_entity_ids + selected_include_entity_ids) if entity_id not in selected_entity_ids]
         default_states_on = ["on", "playing", "home"]
 
         return vol.Schema({

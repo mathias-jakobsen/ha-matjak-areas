@@ -73,7 +73,7 @@ class PresenceSensor(BinarySensorEntity):
         self._entities    : List[str]      = config.get(CONF_ENTITIES)
         self._matjak_area : MatjakArea     = matjak_area
         self._name        : str            = f"{matjak_area.name} Presence"
-        self._state       : List[str]      = None
+        self._state       : List[str]      = []
         self._states_on   : List[str]      = config.get(CONF_STATES_ON)
         self._unique_id   : str            = cv.slugify(self._name)
 
