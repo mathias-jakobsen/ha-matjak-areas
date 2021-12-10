@@ -9,6 +9,7 @@ from .const import (
 )
 from .utils.matjak_area import MatjakArea
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_START
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import IntegrationError
 from homeassistant.helpers.device_registry import EVENT_DEVICE_REGISTRY_UPDATED
@@ -40,17 +41,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     async def async_update_on_registry_update(*args: Any) -> None:
         await hass.config_entries.async_reload(config_entry.entry_id)
 
-    data = hass.data.setdefault(DOMAIN, {})
-    data[config_entry.entry_id] = MatjakArea(hass, config_entry.entry_id, config_entry.options)
-
-    if config_entry.options.get(CONF_AUTO_RELOAD, False):
+    async def async_on_homeassistant_start(*args) -> None:
         config_entry.async_on_unload(hass.bus.async_listen(EVENT_DEVICE_REGISTRY_UPDATED, async_update_on_registry_update))
         config_entry.async_on_unload(hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, async_update_on_registry_update))
 
-    config_entry.async_on_unload(config_entry.add_update_listener(async_update_options))
+
+    data = hass.data.setdefault(DOMAIN, {})
+    data[config_entry.entry_id] = MatjakArea(hass, config_entry.entry_id, config_entry.options)
 
     for platform in PLATFORMS:
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
+
+    if config_entry.options.get(CONF_AUTO_RELOAD, False):
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, async_on_homeassistant_start)
+
+    config_entry.async_on_unload(config_entry.add_update_listener(async_update_options))
 
     return True
 
