@@ -3,15 +3,13 @@
 #-----------------------------------------------------------#
 
 from .const import (
-    ATTR_ENTRY_ID,
     CONF_AUTO_RELOAD,
     DOMAIN,
-    EVENT,
     PLATFORMS
 )
 from .utils.matjak_area import MatjakArea
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import IntegrationError
 from homeassistant.helpers.device_registry import EVENT_DEVICE_REGISTRY_UPDATED
 from homeassistant.helpers.entity_registry import EVENT_ENTITY_REGISTRY_UPDATED
@@ -34,20 +32,14 @@ LOGGER = getLogger(__name__)
 def setup_auto_reload(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     """ Sets up the auto reloading feature. """
     debounce_listener = None
-    debounce_time = 0.5
-    reload_listener = None
+    debounce_time = 1
     should_reload = True
 
     async def async_reload(*args: Any) -> None:
-        nonlocal reload_listener, should_reload
-
-        if reload_listener:
-            reload_listener()
-
-        reload_listener = hass.bus.async_listen(EVENT, async_on_reload)
+        nonlocal should_reload
         should_reload = False
-
         await hass.config_entries.async_reload(config_entry.entry_id)
+        should_reload = True
 
     async def async_on_registry_update(*args: Any) -> None:
         nonlocal debounce_listener, debounce_time, should_reload
@@ -63,16 +55,14 @@ def setup_auto_reload(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
 
         debounce_listener = async_call_later(hass, debounce_time, async_reload)
 
-    async def async_on_reload(event: Event) -> None:
-        nonlocal reload_listener, should_reload
-
-        if event.data.get(ATTR_ENTRY_ID, None) == config_entry.entry_id:
-            reload_listener()
-            should_reload = True
+    async def async_remove_listeners() -> None:
+        if debounce_listener:
+            debounce_listener()
 
     config_entry.async_on_unload(hass.bus.async_listen(EVENT_DEVICE_REGISTRY_UPDATED, async_on_registry_update))
     config_entry.async_on_unload(hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, async_on_registry_update))
-    hass.bus.async_fire(EVENT, { ATTR_ENTRY_ID: config_entry.entry_id })
+
+    return async_remove_listeners
 
 
 #-----------------------------------------------------------#
@@ -95,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
 
     if config_entry.options.get(CONF_AUTO_RELOAD, False):
-        setup_auto_reload(hass, config_entry)
+        config_entry.async_on_unload(setup_auto_reload(hass, config_entry))
 
     config_entry.async_on_unload(config_entry.add_update_listener(async_update_options))
     return True

@@ -11,15 +11,7 @@ from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDevic
 #-----------------------------------------------------------#
 
 DOMAIN = "matjak_areas"
-EVENT = f"{DOMAIN}_event"
 PLATFORMS = [BINARY_SENSOR_DOMAIN, SENSOR_DOMAIN]
-
-
-#-----------------------------------------------------------#
-#       Attribute Keys
-#-----------------------------------------------------------#
-
-ATTR_ENTRY_ID = "entry_id"
 
 
 #-----------------------------------------------------------#
@@ -53,7 +45,7 @@ FEATURES = [FEATURE_PRESENCE, FEATURE_SENSOR_AGGREGATION, FEATURE_BINARY_SENSOR_
 
 
 #-----------------------------------------------------------#
-#       Features
+#       Aggregate Device Classes
 #-----------------------------------------------------------#
 
 AGGREGATE_BINARY_SENSOR_CLASSES = [
