@@ -19,6 +19,7 @@ from homeassistant.const import CONF_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.restore_state import RestoreEntity
 from logging import getLogger
 from typing import Any, Callable, Dict, List
 
@@ -62,7 +63,7 @@ def create_presence_sensor(hass: HomeAssistant, matjak_area: MatjakArea, config:
 #       PresenceSensor
 #-----------------------------------------------------------#
 
-class PresenceSensor(BinarySensorEntity):
+class PresenceSensor(BinarySensorEntity, RestoreEntity):
     #--------------------------------------------#
     #       Constructor
     #--------------------------------------------#
@@ -127,9 +128,18 @@ class PresenceSensor(BinarySensorEntity):
     async def async_added_to_hass(self) -> None:
         """ Triggered when the entity has been added to Home Assistant. """
         if self.hass.is_running:
-            return await self.async_setup()
+            await self.async_setup()
         else:
-            return self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, self.async_setup)
+            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, self.async_setup)
+
+        last_state = await self.async_get_last_state()
+        is_new_entry = last_state is None
+
+        if is_new_entry:
+            await self.async_update_state()
+        else:
+            self._state = last_state.attributes.get(CONF_ENTITY_ID, [])
+            self.async_schedule_update_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """ Triggered when the entity is being removed from Home Assistant. """
@@ -143,7 +153,6 @@ class PresenceSensor(BinarySensorEntity):
     async def async_setup(self, *args: Any) -> None:
         """ Sets up the entity state and event trackers. """
         self.async_on_remove(async_track_state_change(self.hass, self._entities, self.async_update_state))
-        await self.async_update_state()
 
 
     #--------------------------------------------#
@@ -153,7 +162,7 @@ class PresenceSensor(BinarySensorEntity):
     async def async_update_state(self, *args) -> None:
         """ Called when the state of an entity changes. """
         self._state = self._get_state()
-        self.async_schedule_update_ha_state(True)
+        self.async_schedule_update_ha_state()
 
 
     #--------------------------------------------#
