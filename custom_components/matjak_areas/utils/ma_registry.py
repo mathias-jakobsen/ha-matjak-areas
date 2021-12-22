@@ -97,7 +97,7 @@ class MA_Registry:
 
         return feature_config
 
-    def get_entities(self, domains: list[str] = None, device_classes: list[str] = None) -> list[str]:
+    def get_entities(self, domains: list[str] = [], device_classes: list[str] = []) -> list[str]:
         """ Gets a list of entities. """
         result = []
 
@@ -107,10 +107,10 @@ class MA_Registry:
             if state is None:
                 continue
 
-            if domains is not None and entity_id.split(".")[0] not in domains:
+            if len(domains) > 0 and entity_id.split(".")[0] not in domains:
                 continue
 
-            if device_classes is not None:
+            if len(device_classes) > 0:
                 if state.attributes.get(CONF_DEVICE_CLASS, None) not in device_classes:
                     continue
 

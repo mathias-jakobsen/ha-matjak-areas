@@ -7,15 +7,19 @@ from .const import (
     AGGREGATE_BINARY_SENSOR_CLASSES,
     AGGREGATE_SENSOR_CLASSES,
     CONF_AREAS,
+    CONF_BINARY_SENSOR_DEVICE_CLASSES,
     CONF_DEVICE_CLASSES,
     CONF_DOMAINS,
     CONF_ENABLE,
     CONF_EXCLUDE_ENTITIES,
     CONF_GO_BACK,
     CONF_INCLUDE_ENTITIES,
+    CONF_MEDIA_PLAYER_DEVICE_CLASSES,
     CONF_NAME,
     CONF_STATES_ON,
+    DEFAULT_PRESENCE_BINARY_SENSOR_DEVICE_CLASSES,
     DEFAULT_PRESENCE_DOMAINS,
+    DEFAULT_PRESENCE_MEDIA_PLAYER_DEVICE_CLASSES,
     DEFAULT_STATES_ON,
     DOMAIN,
     PRESENCE_DOMAINS,
@@ -23,6 +27,8 @@ from .const import (
 )
 from .utils.flow_builder import FlowBuilder
 from .utils.functions import flatten_list
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.components.media_player import MediaPlayerDeviceClass
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers import area_registry, config_validation as cv, entity_registry
@@ -184,11 +190,17 @@ class Matjak_OptionsFlow(OptionsFlow):
     def step_presence_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
         feature_data = data.get(Features.PRESENCE, {})
         selected_domains = feature_data.get(CONF_DOMAINS, DEFAULT_PRESENCE_DOMAINS)
+        selected_binary_sensor_device_classes = feature_data.get(CONF_BINARY_SENSOR_DEVICE_CLASSES, DEFAULT_PRESENCE_BINARY_SENSOR_DEVICE_CLASSES)
+        selected_media_player_device_classes = feature_data.get(CONF_MEDIA_PLAYER_DEVICE_CLASSES, DEFAULT_PRESENCE_MEDIA_PLAYER_DEVICE_CLASSES)
         domains = selected_domains + [domain for domain in PRESENCE_DOMAINS if domain not in selected_domains]
+        binary_sensor_device_classes = selected_binary_sensor_device_classes + [item.value for item in BinarySensorDeviceClass if item.value not in selected_binary_sensor_device_classes]
+        media_player_device_classes = selected_media_player_device_classes + [item.value for item in MediaPlayerDeviceClass if item.value not in selected_media_player_device_classes]
 
         return vol.Schema({
             vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
             vol.Required(CONF_DOMAINS, default=selected_domains): cv.multi_select(domains),
+            vol.Required(CONF_BINARY_SENSOR_DEVICE_CLASSES, default=selected_binary_sensor_device_classes): cv.multi_select(binary_sensor_device_classes),
+            vol.Required(CONF_MEDIA_PLAYER_DEVICE_CLASSES, default=selected_media_player_device_classes): cv.multi_select(media_player_device_classes),
             vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, DEFAULT_STATES_ON))): str
         })
 

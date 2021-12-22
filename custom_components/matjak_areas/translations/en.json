@@ -43,6 +43,8 @@
                 "data": {
                     "enable": "Enable feature",
                     "domains": "Domains",
+                    "binary_sensor_device_classes": "Binary Sensor Device Classes",
+                    "media_player_device_classes": "Media Player Device Classes",
                     "states_on": "States",
                     "go_back": "Go back to previous step when pressing submit"
                 }

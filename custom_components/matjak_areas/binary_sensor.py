@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 from .const import (
+    CONF_BINARY_SENSOR_DEVICE_CLASSES,
     CONF_DEVICE_CLASSES,
     CONF_DOMAINS,
+    CONF_MEDIA_PLAYER_DEVICE_CLASSES,
     CONF_STATES_ON,
     DOMAIN,
     Features
@@ -86,6 +88,7 @@ class PresenceSensor(MA_BinarySensorEntity):
 
     def __init__(self, registry: MA_Registry, config: PresenceConfig):
         self._config         : PresenceConfig = config
+        self._device_classes : list[str]      = config.get(CONF_BINARY_SENSOR_DEVICE_CLASSES) + config.get(CONF_MEDIA_PLAYER_DEVICE_CLASSES)
         self._domains        : list[str]      = config.get(CONF_DOMAINS)
         self._entities       : list[str]      = []
         self._entities_on    : list[str]      = []
@@ -124,7 +127,7 @@ class PresenceSensor(MA_BinarySensorEntity):
     async def async_setup(self, *args: Any) -> None:
         """ Triggered when the entity is being setup. """
         self.async_on_remove(self._registry.add_update_listener(self.async_on_registry_updated))
-        self._entities = self._registry.get_entities(domains=self._domains)
+        self._entities = self._registry.get_entities(domains=self._domains, device_classes=self._device_classes)
         self._setup_listeners()
 
     async def async_update_state(self) -> None:
@@ -145,7 +148,7 @@ class PresenceSensor(MA_BinarySensorEntity):
 
     async def async_on_registry_updated(self) -> None:
         """ Triggered when the MA_Registry is updated. """
-        self._entities = self._registry.get_entities(domains=self._domains)
+        self._entities = self._registry.get_entities(domains=self._domains, device_classes=self._device_classes)
         self._setup_listeners()
         await self.async_update_state()
 
