@@ -25,7 +25,6 @@
                 "title": "Basic Options (Step 1/5)",
                 "description": "From here you can configure the basic integration options.",
                 "data": {
-                    "auto_reload": "Automatically reload the integration when one of the registries is updated (area, device, entity)",
                     "areas": "Areas"
                 }
             },
@@ -42,9 +41,8 @@
                 "title": "Presence Detection (Step 3/5)",
                 "description": "From here you can configure presence detection feature. Select the entities and define the states that indicate presence.",
                 "data": {
-                    "selected_areas": "Selected areas",
                     "enable": "Enable feature",
-                    "entities": "Entities",
+                    "domains": "Domains",
                     "states_on": "States",
                     "go_back": "Go back to previous step when pressing submit"
                 }
@@ -53,7 +51,6 @@
                 "title": "Sensor Aggregation (Step 4/5)",
                 "description": "From here you can configure sensor aggregation feature. Select the device classes you want to aggregate.",
                 "data": {
-                    "selected_areas": "Selected areas",
                     "enable": "Enable feature",
                     "device_classes": "Device classes",
                     "go_back": "Go back to previous step when pressing submit"
@@ -63,7 +60,6 @@
                 "title": "Binary Sensor Aggregation (Step 5/5)",
                 "description": "From here you can configure binary sensor aggregation feature. Select the device classes you want to aggregate.",
                 "data": {
-                    "selected_areas": "Selected areas",
                     "enable": "Enable feature",
                     "device_classes": "Device classes",
                     "go_back": "Go back to previous step when pressing submit"

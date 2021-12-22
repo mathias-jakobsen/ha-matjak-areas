@@ -7,20 +7,19 @@ from .const import (
     AGGREGATE_BINARY_SENSOR_CLASSES,
     AGGREGATE_SENSOR_CLASSES,
     CONF_AREAS,
-    CONF_AUTO_RELOAD,
     CONF_DEVICE_CLASSES,
+    CONF_DOMAINS,
     CONF_ENABLE,
-    CONF_ENTITIES,
     CONF_EXCLUDE_ENTITIES,
     CONF_GO_BACK,
     CONF_INCLUDE_ENTITIES,
     CONF_NAME,
-    CONF_SELECTED_AREAS,
     CONF_STATES_ON,
+    DEFAULT_PRESENCE_DOMAINS,
+    DEFAULT_STATES_ON,
     DOMAIN,
-    FEATURE_BINARY_SENSOR_AGGREGATION,
-    FEATURE_PRESENCE,
-    FEATURE_SENSOR_AGGREGATION
+    PRESENCE_DOMAINS,
+    Features
 )
 from .utils.flow_builder import FlowBuilder
 from .utils.functions import flatten_list
@@ -29,7 +28,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import area_registry, config_validation as cv, entity_registry
 from homeassistant.helpers.template import area_entities, area_id, area_name
 from logging import getLogger
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Tuple
 import voluptuous as vol
 
 
@@ -128,7 +127,8 @@ class Matjak_OptionsFlow(OptionsFlow):
         self._flow_builder.add_step(STEP_INIT, self.step_init_schema_builder, self.step_init_schema_validator, STEP_ENTITIES)
         self._flow_builder.add_step(STEP_ENTITIES, self.step_entities_schema_builder, self.step_entities_schema_validator, STEP_PRESENCE)
         self._flow_builder.add_step(STEP_PRESENCE, self.step_presence_schema_builder, self.step_presence_schema_validator, STEP_SENSOR_AGGREGATION)
-        self._flow_builder.add_step(STEP_SENSOR_AGGREGATION, self.step_sensor_aggregation_schema_builder, self.step_sensor_aggregation_schema_validator)
+        self._flow_builder.add_step(STEP_SENSOR_AGGREGATION, self.step_sensor_aggregation_schema_builder, self.step_sensor_aggregation_schema_validator, STEP_BINARY_SENSOR_AGGREGATION)
+        self._flow_builder.add_step(STEP_BINARY_SENSOR_AGGREGATION, self.step_binary_sensor_aggregation_schema_builder, self.step_binary_sensor_aggregation_schema_validator)
 
 
     #--------------------------------------------#
@@ -145,7 +145,6 @@ class Matjak_OptionsFlow(OptionsFlow):
         area_names = selected_area_names + [area_name for area_name in all_area_names if area_name not in selected_area_names]
 
         return vol.Schema({
-            vol.Required(CONF_AUTO_RELOAD, default=data.get(CONF_AUTO_RELOAD, False)): bool,
             vol.Required(CONF_AREAS, default=selected_area_names): cv.multi_select(area_names)
         })
 
@@ -183,25 +182,19 @@ class Matjak_OptionsFlow(OptionsFlow):
     #--------------------------------------------#
 
     def step_presence_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        feature_data = data.get(FEATURE_PRESENCE, {})
-        excluded_entity_ids = data.get(CONF_EXCLUDE_ENTITIES, [])
-        selected_entity_ids = [entity_id for entity_id in feature_data.get(CONF_ENTITIES, []) if entity_id not in excluded_entity_ids]
-        selected_include_entity_ids = data.get(CONF_INCLUDE_ENTITIES, [])
-        area_entity_ids = sorted(flatten_list([area_entities(self.hass, area) for area in data.get(CONF_AREAS, [])]))
-        entry_entity_ids = [entry.entity_id for entry in entity_registry.async_entries_for_config_entry(entity_registry.async_get(self.hass), self._config_entry.entry_id)]
-        filtered_area_entity_ids = [entity_id for entity_id in area_entity_ids if entity_id not in excluded_entity_ids and entity_id not in entry_entity_ids]
-        entity_ids = selected_entity_ids + [entity_id for entity_id in sorted(filtered_area_entity_ids + selected_include_entity_ids) if entity_id not in selected_entity_ids]
-        default_states_on = ["on", "playing", "home"]
+        feature_data = data.get(Features.PRESENCE, {})
+        selected_domains = feature_data.get(CONF_DOMAINS, DEFAULT_PRESENCE_DOMAINS)
+        domains = selected_domains + [domain for domain in PRESENCE_DOMAINS if domain not in selected_domains]
 
         return vol.Schema({
             vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
-            vol.Required(CONF_ENTITIES, default=selected_entity_ids): cv.multi_select(entity_ids),
-            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, default_states_on))): str
+            vol.Required(CONF_DOMAINS, default=selected_domains): cv.multi_select(domains),
+            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, DEFAULT_STATES_ON))): str
         })
 
     def step_presence_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
         user_input[CONF_STATES_ON] = cv.ensure_list_csv(user_input[CONF_STATES_ON])
-        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), FEATURE_PRESENCE: user_input }
+        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), Features.PRESENCE: user_input }
 
 
     #--------------------------------------------#
@@ -209,7 +202,7 @@ class Matjak_OptionsFlow(OptionsFlow):
     #--------------------------------------------#
 
     def step_sensor_aggregation_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        feature_data = data.get(FEATURE_SENSOR_AGGREGATION, {})
+        feature_data = data.get(Features.SENSOR_AGGREGATION, {})
         selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
         device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_SENSOR_CLASSES if device_class not in selected_device_classes]
 
@@ -219,4 +212,22 @@ class Matjak_OptionsFlow(OptionsFlow):
         })
 
     def step_sensor_aggregation_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), FEATURE_SENSOR_AGGREGATION: user_input }
+        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), Features.SENSOR_AGGREGATION: user_input }
+
+
+    #--------------------------------------------#
+    #       Binary Sensor Aggregation Step
+    #--------------------------------------------#
+
+    def step_binary_sensor_aggregation_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
+        feature_data = data.get(Features.BINARY_SENSOR_AGGREGATION, {})
+        selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
+        device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_BINARY_SENSOR_CLASSES if device_class not in selected_device_classes]
+
+        return vol.Schema({
+            vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
+            vol.Required(CONF_DEVICE_CLASSES, default=selected_device_classes): cv.multi_select(device_classes)
+        })
+
+    def step_binary_sensor_aggregation_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
+        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), Features.BINARY_SENSOR_AGGREGATION: user_input }

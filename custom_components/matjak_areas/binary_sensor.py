@@ -4,24 +4,31 @@
 
 from __future__ import annotations
 from .const import (
-    CONF_ENTITIES,
+    CONF_DEVICE_CLASSES,
+    CONF_DOMAINS,
     CONF_STATES_ON,
     DOMAIN,
-    FEATURE_BINARY_SENSOR_AGGREGATION,
-    FEATURE_PRESENCE
+    Features
 )
-from .utils.matjak_area import MatjakArea
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
-from homeassistant.components.device_tracker import DOMAIN as DEVICE_TRACKER_DOMAIN
-from homeassistant.components.person import DOMAIN as PERSON_DOMAIN
+from .utils.ma_entity import MA_BinarySensorEntity
+from .utils.ma_registry import MA_Registry
+from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN, BinarySensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import CONF_ENTITY_ID, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change
-from homeassistant.helpers.restore_state import RestoreEntity
 from logging import getLogger
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, TypedDict
+
+
+#-----------------------------------------------------------#
+#       Types
+#-----------------------------------------------------------#
+
+class PresenceConfig(TypedDict):
+    enable: bool
+    entities: list[str]
+    states_on: list[str]
 
 
 #-----------------------------------------------------------#
@@ -37,15 +44,15 @@ LOGGER = getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: Callable) -> bool:
     """ Called when a config entry is being setup.  """
-    matjak_area = hass.data[DOMAIN][config_entry.entry_id]
-    feature_aggregation_config = matjak_area.get_feature(FEATURE_BINARY_SENSOR_AGGREGATION)
-    feature_presence_config = matjak_area.get_feature(FEATURE_PRESENCE)
+    registry = hass.data[DOMAIN][config_entry.entry_id]
+    feature_aggregation_config = registry.get_feature(Features.BINARY_SENSOR_AGGREGATION)
+    feature_presence_config = registry.get_feature(Features.PRESENCE)
 
     if feature_aggregation_config:
-        pass # create binary sensor aggregations
+        async_add_entities(create_aggregate_sensors(hass, registry, feature_aggregation_config))
 
     if feature_presence_config:
-        async_add_entities([create_presence_sensor(hass, matjak_area, feature_presence_config)])
+        async_add_entities([create_presence_sensor(hass, registry, feature_presence_config)])
 
     return True
 
@@ -54,29 +61,37 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 #       Sensor Setup
 #-----------------------------------------------------------#
 
-def create_presence_sensor(hass: HomeAssistant, matjak_area: MatjakArea, config: Dict[str, Any]) -> PresenceSensor:
+def create_presence_sensor(hass: HomeAssistant, registry: MA_Registry, config: dict[str, Any]) -> PresenceSensor:
     """ Handles the creation of the presence sensor. """
-    return PresenceSensor(matjak_area, config)
+    return PresenceSensor(registry, config)
+
+def create_aggregate_sensors(hass: HomeAssistant, registry: MA_Registry, config: dict[str, Any]) -> list[AggregateSensor]:
+    """ Handles the creation of the aggregation sensors. """
+    result = []
+
+    for device_class in config.get(CONF_DEVICE_CLASSES, []):
+        result.append(AggregateSensor(registry, device_class))
+
+    return result
 
 
 #-----------------------------------------------------------#
 #       PresenceSensor
 #-----------------------------------------------------------#
 
-class PresenceSensor(BinarySensorEntity, RestoreEntity):
+class PresenceSensor(MA_BinarySensorEntity):
     #--------------------------------------------#
     #       Constructor
     #--------------------------------------------#
 
-    def __init__(self, matjak_area: MatjakArea, config: Dict[str, Any]):
-        self._attributes  : Dict[str, Any] = {}
-        self._config      : Dict[str, Any] = config
-        self._entities    : List[str]      = config.get(CONF_ENTITIES)
-        self._matjak_area : MatjakArea     = matjak_area
-        self._name        : str            = f"{matjak_area.name} Presence"
-        self._state       : List[str]      = []
-        self._states_on   : List[str]      = config.get(CONF_STATES_ON)
-        self._unique_id   : str            = cv.slugify(self._name)
+    def __init__(self, registry: MA_Registry, config: PresenceConfig):
+        self._config         : PresenceConfig = config
+        self._domains        : list[str]      = config.get(CONF_DOMAINS)
+        self._entities       : list[str]      = []
+        self._entities_on    : list[str]      = []
+        self._registry       : MA_Registry    = registry
+        self._states_on      : list[str]      = config.get(CONF_STATES_ON)
+        self._state_listener : Callable       = None
 
 
     #--------------------------------------------#
@@ -85,92 +100,66 @@ class PresenceSensor(BinarySensorEntity, RestoreEntity):
 
     @property
     def device_class(self) -> str:
-        """ Gets the device class of the sensor. """
-        for entity_id in self._entities:
-            domain = entity_id.split(".")[0]
-
-            if domain not in [DEVICE_TRACKER_DOMAIN, PERSON_DOMAIN]:
-                return BinarySensorDeviceClass.OCCUPANCY
+        """ Gets the device class. """
+        if BINARY_SENSOR_DOMAIN in self._domains:
+            return BinarySensorDeviceClass.OCCUPANCY
 
         return BinarySensorDeviceClass.PRESENCE
 
     @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """ Gets the attributes. """
-        self._attributes = { CONF_ENTITY_ID: self._state }
-        return self._attributes
+        return { CONF_ENTITY_ID: self._entities_on }
 
     @property
     def name(self) -> str:
-        """ Gets the name of the entity. """
-        return self._name
-
-    @property
-    def should_poll(self):
-        """ Gets a boolean indicating whether the entity should be polled. """
-        return False
-
-    @property
-    def state(self) -> str:
-        """ Gets the state of the entity. """
-        return STATE_ON if len(self._state) > 0 else STATE_OFF
-
-    @property
-    def unique_id(self) -> str:
-        """ Gets the unique id of the sensor. """
-        return self._unique_id
+        """ Gets the name. """
+        return f"{self._registry.name} Presence"
 
 
     #--------------------------------------------#
-    #       Event Handlers
-    #--------------------------------------------#
-
-    async def async_added_to_hass(self) -> None:
-        """ Triggered when the entity has been added to Home Assistant. """
-        if self.hass.is_running:
-            await self.async_setup()
-        else:
-            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, self.async_setup)
-
-        last_state = await self.async_get_last_state()
-        is_new_entry = last_state is None
-
-        if is_new_entry:
-            await self.async_update_state()
-        else:
-            self._state = last_state.attributes.get(CONF_ENTITY_ID, [])
-            self.async_schedule_update_ha_state()
-
-    async def async_will_remove_from_hass(self) -> None:
-        """ Triggered when the entity is being removed from Home Assistant. """
-        pass
-
-
-    #--------------------------------------------#
-    #       Methods - Setup
+    #       Methods - Setup/Update/Remove
     #--------------------------------------------#
 
     async def async_setup(self, *args: Any) -> None:
-        """ Sets up the entity state and event trackers. """
-        self.async_on_remove(async_track_state_change(self.hass, self._entities, self.async_update_state))
+        """ Triggered when the entity is being setup. """
+        self.async_on_remove(self._registry.add_update_listener(self.async_on_registry_updated))
+        self._entities = self._registry.get_entities(domains=self._domains)
+        self._setup_listeners()
 
-
-    #--------------------------------------------#
-    #       Methods - Updates
-    #--------------------------------------------#
-
-    async def async_update_state(self, *args) -> None:
-        """ Called when the state of an entity changes. """
-        self._state = self._get_state()
+    async def async_update_state(self) -> None:
+        """ Updates the entity. """
+        self._entities_on = self._get_entities_on()
+        self.state = len(self._entities_on) > 0
         self.async_schedule_update_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """ Triggered when the entity is being removed. """
+        if self._state_listener:
+            self._state_listener()
+
+
+    #--------------------------------------------#
+    #       Event handlers
+    #--------------------------------------------#
+
+    async def async_on_registry_updated(self) -> None:
+        """ Triggered when the MA_Registry is updated. """
+        self._entities = self._registry.get_entities(domains=self._domains)
+        self._setup_listeners()
+        await self.async_update_state()
+
+    async def async_on_state_change(self, *args) -> None:
+        """ Triggered when the tracked entities changes state. """
+        await self.async_update_state()
 
 
     #--------------------------------------------#
     #       Private Methods
     #--------------------------------------------#
 
-    def _get_state(self) -> bool:
-        """ Reevalutes the state of the entity. """
+    def _get_entities_on(self) -> list[str]:
+        """ Gets the entities that are on. """
         result = []
 
         for entity_id in self._entities:
@@ -186,3 +175,114 @@ class PresenceSensor(BinarySensorEntity, RestoreEntity):
                 result.append(entity_id)
 
         return result
+
+    def _setup_listeners(self) -> None:
+        """ Sets up the state listeners. """
+        if self._state_listener:
+            self._state_listener()
+
+        self._state_listener = async_track_state_change(self.hass, self._entities, self.async_on_state_change)
+
+
+#-----------------------------------------------------------#
+#       AggregateSensor
+#-----------------------------------------------------------#
+
+class AggregateSensor(MA_BinarySensorEntity):
+    #--------------------------------------------#
+    #       Constructor
+    #--------------------------------------------#
+
+    def __init__(self, registry: MA_Registry, device_class: str):
+        self._device_class   : str         = device_class
+        self._entities       : list[str]   = []
+        self._entities_on    : list[str]   = []
+        self._registry       : MA_Registry = registry
+        self._state_listener : Callable    = None
+
+
+    #--------------------------------------------#
+    #       Properties
+    #--------------------------------------------#
+
+    @property
+    def device_class(self) -> str:
+        """ Gets the device class. """
+        return self._device_class
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """ Gets the attributes. """
+        return { CONF_ENTITY_ID: self._entities_on }
+
+    @property
+    def name(self) -> str:
+        """ Gets the name. """
+        return f"{self._registry.name} {self._device_class.capitalize()}"
+
+
+    #--------------------------------------------#
+    #       Methods - Setup/Update
+    #--------------------------------------------#
+
+    async def async_setup(self, *args: Any) -> None:
+        """ Triggered when the entity is being setup. """
+        self.async_on_remove(self._registry.add_update_listener(self.async_on_registry_updated))
+        self._entities = self._registry.get_entities(domains=[BINARY_SENSOR_DOMAIN], device_classes=[self._device_class])
+        self._setup_listeners()
+
+    async def async_update_state(self) -> None:
+        """ Updates the entity. """
+        self._entities_on = self._get_entities_on()
+        self.state = len(self._entities_on) > 0
+        self.async_schedule_update_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """ Triggered when the entity is being removed. """
+        if self._state_listener:
+            self._state_listener()
+
+
+    #--------------------------------------------#
+    #       Event handlers
+    #--------------------------------------------#
+
+    async def async_on_registry_updated(self) -> None:
+        """ Triggered when the MA_Registry is updated. """
+        self._entities = self._registry.get_entities(domains=[BINARY_SENSOR_DOMAIN], device_classes=[self._device_class])
+        self._setup_listeners()
+        await self.async_update_state()
+
+    async def async_on_state_change(self, *args) -> None:
+        """ Triggered when the tracked entities changes state. """
+        await self.async_update_state()
+
+
+    #--------------------------------------------#
+    #       Private Methods
+    #--------------------------------------------#
+
+    def _get_entities_on(self) -> list[str]:
+        """ Gets the entities that are on. """
+        result = []
+
+        for entity_id in self._entities:
+            state = self.hass.states.get(entity_id)
+
+            if state is None:
+                continue
+
+            if state.state == STATE_UNAVAILABLE:
+                continue
+
+            if state.state == STATE_ON:
+                result.append(entity_id)
+
+        return result
+
+    def _setup_listeners(self) -> None:
+        """ Sets up the state listeners. """
+        if self._state_listener:
+            self._state_listener()
+
+        self._state_listener = async_track_state_change(self.hass, self._entities, self.async_on_state_change)

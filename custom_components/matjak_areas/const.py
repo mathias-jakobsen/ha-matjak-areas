@@ -2,7 +2,11 @@
 #       Imports
 #-----------------------------------------------------------#
 
+from homeassistant.backports.enum import StrEnum
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, DOMAIN as BINARY_SENSOR_DOMAIN
+from homeassistant.components.device_tracker import DOMAIN as DEVICE_TRACKER_DOMAIN
+from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
+from homeassistant.components.person import DOMAIN as PERSON_DOMAIN
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
 
 
@@ -20,9 +24,9 @@ PLATFORMS = [BINARY_SENSOR_DOMAIN, SENSOR_DOMAIN]
 
 CONF_AREA_ID = "area_id"
 CONF_AREAS = "areas"
-CONF_AUTO_RELOAD = "auto_reload"
 CONF_DEVICE_CLASS = "device_class"
 CONF_DEVICE_CLASSES = "device_classes"
+CONF_DOMAINS = "domains"
 CONF_ENABLE = "enable"
 CONF_ENTITIES = "entities"
 CONF_EXCLUDE_ENTITIES = "exclude_entities"
@@ -30,18 +34,37 @@ CONF_FEATURES = "features"
 CONF_GO_BACK = "go_back"
 CONF_INCLUDE_ENTITIES = "include_entities"
 CONF_NAME = "name"
-CONF_SELECTED_AREAS = "selected_areas"
 CONF_STATES_ON = "states_on"
+
+
+#-----------------------------------------------------------#
+#       Config/Options Flow
+#-----------------------------------------------------------#
+
+DEFAULT_PRESENCE_DOMAINS = [BINARY_SENSOR_DOMAIN]
+DEFAULT_STATES_ON = ["on", "playing", "home", "open"]
 
 
 #-----------------------------------------------------------#
 #       Features
 #-----------------------------------------------------------#
 
-FEATURE_PRESENCE = "Presence"
-FEATURE_SENSOR_AGGREGATION = "Sensor Aggregation"
-FEATURE_BINARY_SENSOR_AGGREGATION = "Binary Sensor Aggregation"
-FEATURES = [FEATURE_PRESENCE, FEATURE_SENSOR_AGGREGATION, FEATURE_BINARY_SENSOR_AGGREGATION]
+class Features(StrEnum):
+    PRESENCE = "Presence"
+    BINARY_SENSOR_AGGREGATION = "Binary Sensor Aggregation"
+    SENSOR_AGGREGATION = "Sensor Aggregation"
+
+
+#-----------------------------------------------------------#
+#       Presence Domains
+#-----------------------------------------------------------#
+
+PRESENCE_DOMAINS = [
+    BINARY_SENSOR_DOMAIN,
+    DEVICE_TRACKER_DOMAIN,
+    MEDIA_PLAYER_DOMAIN,
+    PERSON_DOMAIN
+]
 
 
 #-----------------------------------------------------------#
