@@ -171,10 +171,3 @@ class AggregationSensor(MA_Entity):
             return round(mean(states), 2)
 
         return STATE_UNKNOWN
-
-    def _setup_listeners(self) -> None:
-        """ Sets up the state listeners. """
-        if self._state_listener:
-            self._state_listener()
-
-        self._state_listener = async_track_state_change(self.hass, self._entities, self.async_on_state_change)

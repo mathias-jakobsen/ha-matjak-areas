@@ -187,9 +187,6 @@ class PresenceSensor(MA_BinarySensorEntity):
             if state is None:
                 continue
 
-            if state.state == STATE_UNAVAILABLE:
-                continue
-
             if state.state in self._states_on:
                 result.append(entity_id)
 
@@ -289,9 +286,6 @@ class AggregateSensor(MA_BinarySensorEntity):
             state = self.hass.states.get(entity_id)
 
             if state is None:
-                continue
-
-            if state.state == STATE_UNAVAILABLE:
                 continue
 
             if state.state == STATE_ON:
