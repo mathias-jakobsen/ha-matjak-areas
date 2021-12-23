@@ -6,22 +6,20 @@ from __future__ import annotations
 from .const import (
     AGGREGATE_MODE_SUM,
     CONF_DEVICE_CLASSES,
-    CONF_DOMAINS,
-    CONF_STATES_ON,
     DOMAIN,
     Features
 )
 from .utils.ma_entity import MA_Entity
 from .utils.ma_registry import MA_Registry
-from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorEntity
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_UNIT_OF_MEASUREMENT, EVENT_HOMEASSISTANT_START, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import CONF_UNIT_OF_MEASUREMENT, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change
 from logging import getLogger
 from statistics import mean
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 
 #-----------------------------------------------------------#
@@ -66,7 +64,7 @@ class AggregationSensor(MA_Entity):
 
     def __init__(self, registry: MA_Registry, device_class: str):
         self._device_class   : str         = device_class
-        self._entities       : List[str]   = []
+        self._entities       : list[str]   = []
         self._registry       : MA_Registry = registry
         self._state_listener : Callable    = None
 
@@ -111,8 +109,7 @@ class AggregationSensor(MA_Entity):
     async def async_setup(self, *args: Any) -> None:
         """ Triggered when the entity is being setup. """
         self.async_on_remove(self._registry.add_update_listener(self.async_on_registry_updated))
-        self._entities = self._registry.get_entities(domains=[SENSOR_DOMAIN], device_classes=[self._device_class])
-        self._setup_listeners()
+        await self._async_setup()
 
     async def async_update_state(self) -> None:
         """ Updates the entity. """
@@ -131,9 +128,7 @@ class AggregationSensor(MA_Entity):
 
     async def async_on_registry_updated(self) -> None:
         """ Triggered when the MA_Registry is updated. """
-        self._entities = self._registry.get_entities(domains=[SENSOR_DOMAIN], device_classes=[self._device_class])
-        self._setup_listeners()
-        await self.async_update_state()
+        await self._async_setup()
 
     async def async_on_state_change(self, *args) -> None:
         """ Triggered when the tracked entities changes state. """
@@ -143,6 +138,16 @@ class AggregationSensor(MA_Entity):
     #--------------------------------------------#
     #       Private Methods
     #--------------------------------------------#
+
+    async def _async_setup(self) -> None:
+        """ Sets up the entity list and listeners. """
+        self._entities = self._registry.get_entities(domains=[SENSOR_DOMAIN], device_classes=[self._device_class])
+
+        if self._state_listener:
+            self._state_listener()
+
+        self._state_listener = async_track_state_change(self.hass, self._entities, self.async_on_state_change)
+        await self.async_update_state()
 
     def _get_state(self) -> float:
         """ Reevalutes the state of the entity. """

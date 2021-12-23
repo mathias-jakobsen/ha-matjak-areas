@@ -62,7 +62,6 @@ class MA_Entity(RestoreEntity, Entity):
         """ Triggered when the entity has been added to Home Assistant. """
         async def async_initialize(*args: Any) -> None:
             await self.async_setup()
-            await self.async_update_state()
 
         if self.hass.is_running:
             await async_initialize()
