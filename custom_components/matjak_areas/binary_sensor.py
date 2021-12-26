@@ -170,6 +170,7 @@ class PresenceSensor(MA_BinarySensorEntity):
         await self.async_update_state()
 
     def _get_entities(self) -> list[str]:
+        """ Gets a list of entities to track. """
         result = []
 
         for domain in self._domains:
@@ -270,13 +271,17 @@ class AggregateSensor(MA_BinarySensorEntity):
 
     async def _async_setup(self) -> None:
         """ Sets up the entity list and listeners. """
-        self._entities = self._registry.get_entities(domains=[BINARY_SENSOR_DOMAIN], device_classes=[self._device_class])
+        self._entities = self._get_entities()
 
         if self._state_listener:
             self._state_listener()
 
         self._state_listener = async_track_state_change(self.hass, self._entities, self.async_on_state_change)
         await self.async_update_state()
+
+    def _get_entities(self) -> list[str]:
+        """ Gets a list of entities to track. """
+        return self._registry.get_entities(domains=[BINARY_SENSOR_DOMAIN], device_classes=[self._device_class])
 
     def _get_entities_on(self) -> list[str]:
         """ Gets the entities that are on. """
@@ -292,3 +297,4 @@ class AggregateSensor(MA_BinarySensorEntity):
                 result.append(entity_id)
 
         return result
+

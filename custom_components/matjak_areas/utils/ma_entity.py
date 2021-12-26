@@ -8,7 +8,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import StateType
 from logging import getLogger
-from typing import Any, final
+from typing import Any
 
 
 #-----------------------------------------------------------#

@@ -14,9 +14,6 @@ from .functions import flatten_list
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
-from homeassistant.helpers.device_registry import EVENT_DEVICE_REGISTRY_UPDATED
-from homeassistant.helpers.entity_registry import EVENT_ENTITY_REGISTRY_UPDATED
-from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.template import area_entities
 from logging import getLogger
 from types import MethodType
@@ -61,7 +58,6 @@ class MA_Registry:
         self._hass         : HomeAssistant        = hass
         self._listeners    : list[UpdateListener] = []
         self._name         : str                  = self._config.get(CONF_NAME)
-        config_entry.async_on_unload(self._setup_listeners())
 
 
     #--------------------------------------------#
@@ -74,7 +70,7 @@ class MA_Registry:
 
 
     #--------------------------------------------#
-    #       Methods - Listeners
+    #       Methods - Upda
     #--------------------------------------------#
 
     def add_update_listener(self, listener: UpdateListener) -> RemoveListener:
@@ -82,6 +78,12 @@ class MA_Registry:
         weak_listener = self._create_weak_listener(listener)
         self._listeners.append(weak_listener)
         return lambda: self._listeners.remove(weak_listener)
+
+    def update_entities(self) -> None:
+        """ Updates the entity list. """
+        self._entities = self._process_entity_config(self._hass, self._config_entry, self._config)
+        for listener in self._listeners:
+            self._hass.async_create_task(listener()())
 
 
     #--------------------------------------------#
@@ -145,37 +147,3 @@ class MA_Registry:
                 entities.remove(entity_id)
 
         return entities
-
-    def _setup_listeners(self) -> None:
-        """ Sets up the event listeners. """
-        debounce_listener = None
-        debounce_time = 1
-        should_reload = True
-
-        async def async_reload(*args: Any) -> None:
-            nonlocal should_reload
-            LOGGER.debug("Registry updated")
-            should_reload = False
-            self._entities = self._process_entity_config(self._hass, self._config_entry, self._config)
-            for listener in self._listeners:
-                self._hass.async_create_task(listener()())
-            should_reload = True
-
-        async def async_on_registry_update(*args: Any) -> None:
-            nonlocal debounce_listener, debounce_time, should_reload
-
-            if not self._hass.is_running:
-                return
-
-            if not should_reload:
-                return
-
-            if debounce_listener:
-                debounce_listener()
-
-            debounce_listener = async_call_later(self._hass, debounce_time, async_reload)
-
-        self._config_entry.async_on_unload(self._hass.bus.async_listen(EVENT_DEVICE_REGISTRY_UPDATED, async_on_registry_update))
-        self._config_entry.async_on_unload(self._hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, async_on_registry_update))
-
-        return lambda: debounce_listener and debounce_listener()
