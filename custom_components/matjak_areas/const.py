@@ -25,6 +25,7 @@ PLATFORMS = [BINARY_SENSOR_DOMAIN, SENSOR_DOMAIN]
 CONF_AREA_ID = "area_id"
 CONF_AREAS = "areas"
 CONF_BINARY_SENSOR_DEVICE_CLASSES = "binary_sensor_device_classes"
+CONF_CLEAR_TIMEOUT = "clear_timeout"
 CONF_DEVICE_CLASS = "device_class"
 CONF_DEVICE_CLASSES = "device_classes"
 CONF_DOMAINS = "domains"
@@ -43,6 +44,7 @@ CONF_STATES_ON = "states_on"
 #       Config/Options Flow
 #-----------------------------------------------------------#
 
+DEFAULT_CLEAR_TIMEOUT = 60
 DEFAULT_PRESENCE_DOMAINS = [BINARY_SENSOR_DOMAIN]
 DEFAULT_PRESENCE_BINARY_SENSOR_DEVICE_CLASSES = [BinarySensorDeviceClass.MOTION, BinarySensorDeviceClass.OCCUPANCY]
 DEFAULT_PRESENCE_MEDIA_PLAYER_DEVICE_CLASSES = [MediaPlayerDeviceClass.TV]

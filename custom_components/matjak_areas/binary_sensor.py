@@ -5,6 +5,7 @@
 from __future__ import annotations
 from .const import (
     CONF_BINARY_SENSOR_DEVICE_CLASSES,
+    CONF_CLEAR_TIMEOUT,
     CONF_DEVICE_CLASSES,
     CONF_DOMAINS,
     CONF_MEDIA_PLAYER_DEVICE_CLASSES,
@@ -19,7 +20,7 @@ from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ENTITY_ID, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.event import async_call_later, async_track_state_change
 from logging import getLogger
 from typing import Any, Callable, TypedDict
 
@@ -88,6 +89,8 @@ class PresenceSensor(MA_BinarySensorEntity):
     #--------------------------------------------#
 
     def __init__(self, registry: MA_Registry, config: PresenceConfig):
+        self._clear_timeout  : int                  = config.get(CONF_CLEAR_TIMEOUT)
+        self._clear_listener : Callable             = None
         self._config         : PresenceConfig       = config
         self._device_classes : dict[str, list[str]] = { BINARY_SENSOR_DOMAIN: config.get(CONF_BINARY_SENSOR_DEVICE_CLASSES), MEDIA_PLAYER_DOMAIN: config.get(CONF_MEDIA_PLAYER_DEVICE_CLASSES) }
         self._domains        : list[str]            = config.get(CONF_DOMAINS)
@@ -132,12 +135,28 @@ class PresenceSensor(MA_BinarySensorEntity):
 
     async def async_update_state(self) -> None:
         """ Updates the entity. """
+        def async_clear(*args: Any) -> None:
+            self.state = False
+            self.async_schedule_update_ha_state()
+
         self._entities_on = self._get_entities_on()
-        self.state = len(self._entities_on) > 0
-        self.async_schedule_update_ha_state()
+
+        if len(self._entities_on) == 0:
+            if self._clear_listener is None:
+                self._clear_listener = async_call_later(self.hass, self._clear_timeout, async_clear)
+        else:
+            if self._clear_listener:
+                self._clear_listener()
+                self._clear_listener = None
+
+            self.state = True
+            self.async_schedule_update_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """ Triggered when the entity is being removed. """
+        if self._clear_listener:
+            self._clear_listener()
+
         if self._state_listener:
             self._state_listener()
 

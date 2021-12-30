@@ -8,6 +8,7 @@ from .const import (
     AGGREGATE_SENSOR_CLASSES,
     CONF_AREAS,
     CONF_BINARY_SENSOR_DEVICE_CLASSES,
+    CONF_CLEAR_TIMEOUT,
     CONF_DEVICE_CLASSES,
     CONF_DOMAINS,
     CONF_ENABLE,
@@ -17,6 +18,7 @@ from .const import (
     CONF_MEDIA_PLAYER_DEVICE_CLASSES,
     CONF_NAME,
     CONF_STATES_ON,
+    DEFAULT_CLEAR_TIMEOUT,
     DEFAULT_PRESENCE_BINARY_SENSOR_DEVICE_CLASSES,
     DEFAULT_PRESENCE_DOMAINS,
     DEFAULT_PRESENCE_MEDIA_PLAYER_DEVICE_CLASSES,
@@ -201,7 +203,8 @@ class Matjak_OptionsFlow(OptionsFlow):
             vol.Required(CONF_DOMAINS, default=selected_domains): cv.multi_select(domains),
             vol.Required(CONF_BINARY_SENSOR_DEVICE_CLASSES, default=selected_binary_sensor_device_classes): cv.multi_select(binary_sensor_device_classes),
             vol.Required(CONF_MEDIA_PLAYER_DEVICE_CLASSES, default=selected_media_player_device_classes): cv.multi_select(media_player_device_classes),
-            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, DEFAULT_STATES_ON))): str
+            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, DEFAULT_STATES_ON))): str,
+            vol.Required(CONF_CLEAR_TIMEOUT, default=feature_data.get(CONF_CLEAR_TIMEOUT, DEFAULT_CLEAR_TIMEOUT)): vol.All(int, vol.Range(min=0))
         })
 
     def step_presence_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
