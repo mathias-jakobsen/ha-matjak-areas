@@ -10,6 +10,7 @@ from .const import (
     CONF_DOMAINS,
     CONF_MEDIA_PLAYER_DEVICE_CLASSES,
     CONF_STATES_ON,
+    DEFAULT_CLEAR_TIMEOUT,
     DOMAIN,
     Features
 )
@@ -18,7 +19,7 @@ from .utils.ma_registry import MA_Registry
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN, BinarySensorDeviceClass
 from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ENTITY_ID, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import CONF_ENTITY_ID, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_call_later, async_track_state_change
 from logging import getLogger
@@ -89,15 +90,15 @@ class PresenceSensor(MA_BinarySensorEntity):
     #--------------------------------------------#
 
     def __init__(self, registry: MA_Registry, config: PresenceConfig):
-        self._clear_timeout  : int                  = config.get(CONF_CLEAR_TIMEOUT)
+        self._clear_timeout  : int                  = config.get(CONF_CLEAR_TIMEOUT, DEFAULT_CLEAR_TIMEOUT)
         self._clear_listener : Callable             = None
         self._config         : PresenceConfig       = config
-        self._device_classes : dict[str, list[str]] = { BINARY_SENSOR_DOMAIN: config.get(CONF_BINARY_SENSOR_DEVICE_CLASSES), MEDIA_PLAYER_DOMAIN: config.get(CONF_MEDIA_PLAYER_DEVICE_CLASSES) }
-        self._domains        : list[str]            = config.get(CONF_DOMAINS)
+        self._device_classes : dict[str, list[str]] = { BINARY_SENSOR_DOMAIN: config.get(CONF_BINARY_SENSOR_DEVICE_CLASSES, []), MEDIA_PLAYER_DOMAIN: config.get(CONF_MEDIA_PLAYER_DEVICE_CLASSES, []) }
+        self._domains        : list[str]            = config.get(CONF_DOMAINS, [])
         self._entities       : list[str]            = []
         self._entities_on    : list[str]            = []
         self._registry       : MA_Registry          = registry
-        self._states_on      : list[str]            = config.get(CONF_STATES_ON)
+        self._states_on      : list[str]            = config.get(CONF_STATES_ON, [])
         self._state_listener : Callable             = None
 
 
