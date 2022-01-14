@@ -3,58 +3,19 @@
 #-----------------------------------------------------------#
 
 from __future__ import annotations
-from .const import (
-    AGGREGATE_BINARY_SENSOR_CLASSES,
-    AGGREGATE_SENSOR_CLASSES,
-    CONF_AREAS,
-    CONF_BINARY_SENSOR_DEVICE_CLASSES,
-    CONF_CLEAR_TIMEOUT,
-    CONF_DEVICE_CLASSES,
-    CONF_DOMAINS,
-    CONF_ENABLE,
-    CONF_EXCLUDE_ENTITIES,
-    CONF_GO_BACK,
-    CONF_INCLUDE_ENTITIES,
-    CONF_MEDIA_PLAYER_DEVICE_CLASSES,
-    CONF_NAME,
-    CONF_STATES_ON,
-    DEFAULT_CLEAR_TIMEOUT,
-    DEFAULT_PRESENCE_BINARY_SENSOR_DEVICE_CLASSES,
-    DEFAULT_PRESENCE_DOMAINS,
-    DEFAULT_PRESENCE_MEDIA_PLAYER_DEVICE_CLASSES,
-    DEFAULT_STATES_ON,
-    DOMAIN,
-    PRESENCE_DOMAINS,
-    Features
-)
-from .utils.flow_builder import FlowBuilder
-from .utils.functions import flatten_list
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-from homeassistant.components.media_player import MediaPlayerDeviceClass
+from .const import DOMAIN
+from .utils.config import AreaConfig, BaseConfig, BinarySensorAggregationConfig, EntitiesConfig, InitConfig, PresenceConfig, SensorAggregationConfig
+from .utils.flows import ConfigFlowBuilder, OptionsFlowBuilder
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.helpers import area_registry, config_validation as cv, entity_registry
-from homeassistant.helpers.template import area_entities, area_id, area_name
-from logging import getLogger
-from typing import Any, Dict, Tuple
-import voluptuous as vol
+from logging import getLogger, Logger
 
 
 #-----------------------------------------------------------#
 #       Constants
 #-----------------------------------------------------------#
 
-# ------ Errors --------------
-ERROR_AREA_REQUIRED = "area_required"
-ERROR_NAME_REQUIRED = "name_required"
-
-# ------ Steps ---------------
-STEP_BINARY_SENSOR_AGGREGATION = "binary_sensor_aggregation"
-STEP_ENTITIES = "entities"
-STEP_INIT = "init"
-STEP_PRESENCE = "presence"
-STEP_SENSOR_AGGREGATION = "sensor_aggregation"
-STEP_USER = "user"
+LOGGER: Logger = getLogger(__name__)
 
 
 #-----------------------------------------------------------#
@@ -85,39 +46,17 @@ class Matjak_ConfigFlow(ConfigFlow, domain=DOMAIN):
     #--------------------------------------------#
 
     def __init__(self):
-        self._flow_builder = FlowBuilder(self)
-        self._flow_builder.add_step(STEP_USER, self.step_user_schema_builder, self.step_user_schema_validator)
+        self._flow_builder = ConfigFlowBuilder(self, self._parse_configuration)
+        self._flow_builder.add_step("user", InitConfig)
 
 
     #--------------------------------------------#
     #       Methods
     #--------------------------------------------#
 
-    def step_user_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        areas = area_registry.async_get(self.hass).async_list_areas()
-        area_names = sorted([area.name for area in areas])
-
-        return vol.Schema({
-            vol.Optional(CONF_NAME, default=data.get(CONF_NAME, "")): str,
-            vol.Required(CONF_AREAS, default=data.get(CONF_AREAS, [])): cv.multi_select(area_names)
-        })
-
-    def step_user_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        errors = {}
-
-        if len(user_input[CONF_AREAS]) == 0:
-            errors[CONF_AREAS] = ERROR_AREA_REQUIRED
-
-        if len(user_input[CONF_AREAS]) > 1 and not user_input[CONF_NAME]:
-            errors[CONF_NAME] = ERROR_NAME_REQUIRED
-
-        if len(errors) == 0:
-            if not user_input[CONF_NAME]:
-                user_input[CONF_NAME] = user_input[CONF_AREAS][0]
-
-            user_input[CONF_AREAS] = [area_id(self.hass, area) for area in user_input[CONF_AREAS]]
-
-        return errors, user_input
+    def _parse_configuration(self, configs: dict[str, BaseConfig]) -> dict:
+        """ Parses the configuration to a dictionary. """
+        return { **configs.pop("user").__dict__ }
 
 
 #-----------------------------------------------------------#
@@ -130,119 +69,19 @@ class Matjak_OptionsFlow(OptionsFlow):
     #--------------------------------------------#
 
     def __init__(self, config_entry: ConfigEntry):
-        self._config_entry = config_entry
-        self._flow_builder = FlowBuilder(self, { **config_entry.data, **config_entry.options })
-        self._flow_builder.add_step(STEP_INIT, self.step_init_schema_builder, self.step_init_schema_validator, STEP_ENTITIES)
-        self._flow_builder.add_step(STEP_ENTITIES, self.step_entities_schema_builder, self.step_entities_schema_validator, STEP_PRESENCE)
-        self._flow_builder.add_step(STEP_PRESENCE, self.step_presence_schema_builder, self.step_presence_schema_validator, STEP_SENSOR_AGGREGATION)
-        self._flow_builder.add_step(STEP_SENSOR_AGGREGATION, self.step_sensor_aggregation_schema_builder, self.step_sensor_aggregation_schema_validator, STEP_BINARY_SENSOR_AGGREGATION)
-        self._flow_builder.add_step(STEP_BINARY_SENSOR_AGGREGATION, self.step_binary_sensor_aggregation_schema_builder, self.step_binary_sensor_aggregation_schema_validator)
+        self._data = { **config_entry.options }
+        self._flow_builder = OptionsFlowBuilder(self, config_entry, self._parse_configuration)
+        self._flow_builder.add_step("areas", "Areas", AreaConfig, self._data.get("areas", {}))
+        self._flow_builder.add_step("entities", "Entities", EntitiesConfig, **self._data.get("entities", {}))
+        self._flow_builder.add_step("presence", "Presence Detection", PresenceConfig, **self._data.get("presence", {}))
+        self._flow_builder.add_step("sensor_aggregation", "Sensor Aggregation", SensorAggregationConfig, **self._data.get("sensor_aggregation", {}))
+        self._flow_builder.add_step("binary_sensor_aggregation", "Binary Sensor Aggregation", BinarySensorAggregationConfig, **self._data.get("binary_sensor_aggregation", {}))
 
 
     #--------------------------------------------#
-    #       Init Step
+    #       Methods
     #--------------------------------------------#
 
-    def step_init_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        selected_area_ids = data.get(CONF_AREAS, [])
-        selected_area_names = [area_name(self.hass, area_id) for area_id in selected_area_ids]
-
-        all_area_ids = sorted([area.id for area in area_registry.async_get(self.hass).async_list_areas()])
-        all_area_names = [area_name(self.hass, area_id) for area_id in all_area_ids]
-
-        area_names = selected_area_names + [area_name for area_name in all_area_names if area_name not in selected_area_names]
-
-        return vol.Schema({
-            vol.Required(CONF_AREAS, default=selected_area_names): cv.multi_select(area_names)
-        })
-
-    def step_init_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        user_input[CONF_AREAS] = [area_id(self.hass, area) for area in user_input[CONF_AREAS]]
-        return {}, user_input
-
-
-    #--------------------------------------------#
-    #       Entities Step
-    #--------------------------------------------#
-
-    def step_entities_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        selected_exclude_entity_ids = data.get(CONF_EXCLUDE_ENTITIES, [])
-        selected_include_entity_ids = data.get(CONF_INCLUDE_ENTITIES, [])
-
-        area_entity_ids = sorted(flatten_list([area_entities(self.hass, area) for area in data.get(CONF_AREAS, [])]))
-        entry_entity_ids = [entry.entity_id for entry in entity_registry.async_entries_for_config_entry(entity_registry.async_get(self.hass), self._config_entry.entry_id)]
-        all_entity_ids = sorted([entity_id for entity_id in self.hass.states.async_entity_ids() if entity_id not in area_entity_ids])
-
-        exclude_entity_ids = selected_exclude_entity_ids + [entity_id for entity_id in area_entity_ids if entity_id not in selected_exclude_entity_ids and entity_id not in entry_entity_ids]
-        include_entity_ids = selected_include_entity_ids + [entity_id for entity_id in all_entity_ids if entity_id not in selected_include_entity_ids and entity_id not in entry_entity_ids]
-
-        return vol.Schema({
-            vol.Required(CONF_EXCLUDE_ENTITIES, default=selected_exclude_entity_ids): cv.multi_select(exclude_entity_ids),
-            vol.Required(CONF_INCLUDE_ENTITIES, default=selected_include_entity_ids): cv.multi_select(include_entity_ids)
-        })
-
-    def step_entities_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        return {}, user_input
-
-
-    #--------------------------------------------#
-    #       Presence Step
-    #--------------------------------------------#
-
-    def step_presence_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        feature_data = data.get(Features.PRESENCE, {})
-        selected_domains = feature_data.get(CONF_DOMAINS, DEFAULT_PRESENCE_DOMAINS)
-        selected_binary_sensor_device_classes = feature_data.get(CONF_BINARY_SENSOR_DEVICE_CLASSES, DEFAULT_PRESENCE_BINARY_SENSOR_DEVICE_CLASSES)
-        selected_media_player_device_classes = feature_data.get(CONF_MEDIA_PLAYER_DEVICE_CLASSES, DEFAULT_PRESENCE_MEDIA_PLAYER_DEVICE_CLASSES)
-        domains = selected_domains + [domain for domain in PRESENCE_DOMAINS if domain not in selected_domains]
-        binary_sensor_device_classes = selected_binary_sensor_device_classes + [item.value for item in BinarySensorDeviceClass if item.value not in selected_binary_sensor_device_classes]
-        media_player_device_classes = selected_media_player_device_classes + [item.value for item in MediaPlayerDeviceClass if item.value not in selected_media_player_device_classes]
-
-        return vol.Schema({
-            vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
-            vol.Required(CONF_DOMAINS, default=selected_domains): cv.multi_select(domains),
-            vol.Required(CONF_BINARY_SENSOR_DEVICE_CLASSES, default=selected_binary_sensor_device_classes): cv.multi_select(binary_sensor_device_classes),
-            vol.Required(CONF_MEDIA_PLAYER_DEVICE_CLASSES, default=selected_media_player_device_classes): cv.multi_select(media_player_device_classes),
-            vol.Required(CONF_STATES_ON, default=", ".join(feature_data.get(CONF_STATES_ON, DEFAULT_STATES_ON))): str,
-            vol.Required(CONF_CLEAR_TIMEOUT, default=feature_data.get(CONF_CLEAR_TIMEOUT, DEFAULT_CLEAR_TIMEOUT)): vol.All(int, vol.Range(min=0))
-        })
-
-    def step_presence_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        user_input[CONF_STATES_ON] = cv.ensure_list_csv(user_input[CONF_STATES_ON])
-        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), Features.PRESENCE: user_input }
-
-
-    #--------------------------------------------#
-    #       Sensor Aggregation Step
-    #--------------------------------------------#
-
-    def step_sensor_aggregation_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        feature_data = data.get(Features.SENSOR_AGGREGATION, {})
-        selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
-        device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_SENSOR_CLASSES if device_class not in selected_device_classes]
-
-        return vol.Schema({
-            vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
-            vol.Required(CONF_DEVICE_CLASSES, default=selected_device_classes): cv.multi_select(device_classes)
-        })
-
-    def step_sensor_aggregation_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), Features.SENSOR_AGGREGATION: user_input }
-
-
-    #--------------------------------------------#
-    #       Binary Sensor Aggregation Step
-    #--------------------------------------------#
-
-    def step_binary_sensor_aggregation_schema_builder(self, data: Dict[str, Any]) -> vol.Schema:
-        feature_data = data.get(Features.BINARY_SENSOR_AGGREGATION, {})
-        selected_device_classes = feature_data.get(CONF_DEVICE_CLASSES, [])
-        device_classes = selected_device_classes + [device_class for device_class in AGGREGATE_BINARY_SENSOR_CLASSES if device_class not in selected_device_classes]
-
-        return vol.Schema({
-            vol.Required(CONF_ENABLE, default=feature_data.get(CONF_ENABLE, False)): bool,
-            vol.Required(CONF_DEVICE_CLASSES, default=selected_device_classes): cv.multi_select(device_classes)
-        })
-
-    def step_binary_sensor_aggregation_schema_validator(self, user_input: Dict[str, Any]) -> Tuple[Dict[str, str], Dict[str, Any]]:
-        return {}, { CONF_GO_BACK: user_input.pop(CONF_GO_BACK), Features.BINARY_SENSOR_AGGREGATION: user_input }
+    def _parse_configuration(self, configs: dict[str, BaseConfig]) -> dict:
+        """ Parses the configuration to a dictionary. """
+        return { **configs.pop("areas").__dict__, **{ key: value.__dict__ for key, value in configs.items() } }

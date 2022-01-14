@@ -2,25 +2,25 @@
 #       Imports
 #-----------------------------------------------------------#
 
-from logging import getLogger
+from typing import Callable, Union
 
 
 #-----------------------------------------------------------#
-#       Constants
+#       Types - Entities
 #-----------------------------------------------------------#
 
-LOGGER = getLogger(__name__)
-
-
-#-----------------------------------------------------------#
-#       List Functions
-#-----------------------------------------------------------#
-
-def flatten_list(list: list) -> list:
-    """ Flattens the provided list. """
-    return [item for sublist in list for item in sublist]
+EntityId = Union[str, list[str], dict[str, Union[str, list[str]]]]
 
 
 #-----------------------------------------------------------#
-#       Tracker Functions
+#       Types - Callbacks
 #-----------------------------------------------------------#
+
+Callback = Callable[[], None]
+
+
+#-----------------------------------------------------------#
+#       Types - Listeners
+#-----------------------------------------------------------#
+
+RemoveListener = Callable[[], None]

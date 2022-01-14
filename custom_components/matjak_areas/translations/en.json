@@ -22,50 +22,67 @@
     "options": {
         "step": {
             "init": {
-                "title": "Basic Options (Step 1/5)",
-                "description": "From here you can configure the basic integration options.",
+                "title": "Areas",
+                "description": "From here you can configure the areas.",
                 "data": {
-                    "areas": "Areas"
+                    "areas": "Areas",
+                    "next_step": "Next Step"
                 }
             },
             "entities": {
-                "title": "Entities (Step 2/5)",
+                "title": "Entities",
                 "description": "From here you can configure the entities being excluded/included.",
                 "data": {
                     "exclude_entities": "Exclude entities",
                     "include_entities": "Include entities",
-                    "go_back": "Go back to previous step when pressing submit"
+                    "next_step": "Next Step"
                 }
             },
             "presence": {
-                "title": "Presence Detection (Step 3/5)",
-                "description": "From here you can configure presence detection feature. Select the entities and define the states that indicate presence.",
+                "title": "Presence Detection",
+                "description": "From here you can configure presence detection feature. Select the domains and device classes, and define the states that indicate presence.",
                 "data": {
                     "enable": "Enable feature",
                     "domains": "Domains",
-                    "binary_sensor_device_classes": "Binary Sensor Device Classes",
-                    "media_player_device_classes": "Media Player Device Classes",
-                    "states_on": "States",
+                    "device_classes": "Device Classes",
+                    "states_on": "States On",
                     "clear_timeout": "Clear Timeout",
-                    "go_back": "Go back to previous step when pressing submit"
+                    "device_class": "Presence Device Class",
+                    "next_step": "Next Step"
                 }
             },
             "sensor_aggregation": {
-                "title": "Sensor Aggregation (Step 4/5)",
+                "title": "Sensor Aggregation",
                 "description": "From here you can configure sensor aggregation feature. Select the device classes you want to aggregate.",
                 "data": {
                     "enable": "Enable feature",
                     "device_classes": "Device classes",
-                    "go_back": "Go back to previous step when pressing submit"
+                    "next_step": "Next Step"
                 }
             },
             "binary_sensor_aggregation": {
-                "title": "Binary Sensor Aggregation (Step 5/5)",
+                "title": "Binary Sensor Aggregation",
                 "description": "From here you can configure binary sensor aggregation feature. Select the device classes you want to aggregate.",
                 "data": {
                     "enable": "Enable feature",
                     "device_classes": "Device classes",
-                    "go_back": "Go back to previous step when pressing submit"
+                    "next_step": "Next Step"
+                }
+            },
+            "adaptive_lighting": {
+                "title": "Adaptive Lighting",
+                "description": "From here you can configure adaptive lighting feature.",
+                "data": {
+                    "enable": "Enable feature",
+                    "entities": "Entities",
+                    "interval": "Interval",
+                    "transition": "Transition",
+                    "min_brightness_pct": "Minimum brightness (in %)",
+                    "max_brightness_pct": "Maximum brightness (in %)",
+                    "min_color_temp": "Minimum color temperature (in kelvin)",
+                    "max_color_temp": "Maximum color temperature (in kelvin)",
+                    "individual_control": "Individual control",
+                    "next_step": "Next Step"
                 }
             }
         }
