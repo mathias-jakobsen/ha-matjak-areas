@@ -20,6 +20,10 @@
         }
     },
     "options": {
+        "error": {
+            "min_brightness_pct_high": "Minimum brightness cannot be higher than maximum brightness.",
+            "min_color_temp_high": "Minimum color temperature cannot be higher than maximum color temperature."
+        },
         "step": {
             "init": {
                 "title": "Areas",

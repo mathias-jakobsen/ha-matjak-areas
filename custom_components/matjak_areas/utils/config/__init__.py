@@ -1,3 +1,4 @@
+from .adaptive_lighting_config import AdaptiveLightingConfig
 from .area_config import AreaConfig
 from .base_config import BaseConfig
 from .binary_sensor_aggregation_config import BinarySensorAggregationConfig

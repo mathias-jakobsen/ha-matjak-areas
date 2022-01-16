@@ -53,11 +53,11 @@ class OptionsFlowBuilder(FlowBuilder):
 
             if user_input:
                 next_step = user_input.pop(CONF_NEXT_STEP)
-                new_config = config_type(**user_input)
-                is_valid, errors = new_config.validate(self.flow_handler.hass)
+                config = config_type(**user_input)
+                is_valid, errors = config.validate(self.flow_handler.hass)
 
                 if is_valid:
-                    self.configs[step_id] = new_config
+                    self.configs[step_id] = config
 
                     if next_step == STEP_SAVE:
                         return self.flow_handler.async_create_entry(title="", data=self.config_parser(self.configs))

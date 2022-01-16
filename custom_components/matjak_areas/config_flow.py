@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 from .const import DOMAIN
-from .utils.config import AreaConfig, BaseConfig, BinarySensorAggregationConfig, EntitiesConfig, InitConfig, PresenceConfig, SensorAggregationConfig
+from .utils.config import AdaptiveLightingConfig, AreaConfig, BaseConfig, BinarySensorAggregationConfig, EntitiesConfig, InitConfig, PresenceConfig, SensorAggregationConfig
 from .utils.flows import ConfigFlowBuilder, OptionsFlowBuilder
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
@@ -76,6 +76,7 @@ class Matjak_OptionsFlow(OptionsFlow):
         self._flow_builder.add_step("presence", "Presence Detection", PresenceConfig, **self._data.get("presence", {}))
         self._flow_builder.add_step("sensor_aggregation", "Sensor Aggregation", SensorAggregationConfig, **self._data.get("sensor_aggregation", {}))
         self._flow_builder.add_step("binary_sensor_aggregation", "Binary Sensor Aggregation", BinarySensorAggregationConfig, **self._data.get("binary_sensor_aggregation", {}))
+        self._flow_builder.add_step("adaptive_lighting", "Adaptive Lighting", AdaptiveLightingConfig, **self._data.get("adaptive_lighting", {}))
 
 
     #--------------------------------------------#
