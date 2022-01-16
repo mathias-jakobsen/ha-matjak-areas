@@ -2,6 +2,7 @@
 #       Imports
 #-----------------------------------------------------------#
 
+from .adaptive_lighting_config import AdaptiveLightingConfig
 from .binary_sensor_aggregation_config import BinarySensorAggregationConfig
 from .entities_config import EntitiesConfig
 from .presence_config import PresenceConfig
@@ -19,6 +20,7 @@ class ConfigEntryOptions(TypedDict):
     presence: dict[str, Any]
     sensor_aggregation: dict[str, Any]
     binary_sensor_aggregation: dict[str, Any]
+    adaptive_lighting: dict[str, Any]
 
 
 #-----------------------------------------------------------#
@@ -35,6 +37,7 @@ class RegistryConfig:
     entities: EntitiesConfig
     presence: PresenceConfig
     sensor_aggregation: SensorAggregationConfig
+    adaptive_lighting: AdaptiveLightingConfig
 
 
     #--------------------------------------------#
@@ -48,4 +51,5 @@ class RegistryConfig:
         self.presence = PresenceConfig(**config.get("presence", {}))
         self.binary_sensor_aggregation = BinarySensorAggregationConfig(**config.get("binary_sensor_aggregation", {}))
         self.sensor_aggregation = SensorAggregationConfig(**config.get("sensor_aggregation", {}))
+        self.adaptive_lighting = AdaptiveLightingConfig(**config.get("adaptive_lighting", {}))
 

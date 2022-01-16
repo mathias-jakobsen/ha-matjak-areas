@@ -2,7 +2,6 @@
 #       Imports
 #-----------------------------------------------------------#
 
-from typing_extensions import Required
 from ..functions import flatten_list
 from .area_config import AreaConfig
 from .base_config import BaseConfig
@@ -13,7 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, entity_registry
 from homeassistant.helpers.template import area_entities
-from typing import Any, ClassVar
+from typing import Any
 import voluptuous as vol
 
 
@@ -23,13 +22,6 @@ import voluptuous as vol
 
 @dataclass
 class AdaptiveLightingConfig(BaseConfig):
-    #--------------------------------------------#
-    #       Constants
-    #--------------------------------------------#
-
-
-
-
     #--------------------------------------------#
     #       Fields
     #--------------------------------------------#
